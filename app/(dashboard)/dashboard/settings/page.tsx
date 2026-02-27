@@ -102,7 +102,7 @@ export default async function SettingsPage() {
                         <h3 className="font-semibold text-[#1A1A1A] mb-1">Buffer Access Token</h3>
                         <p className="text-sm text-gray-500 mb-3">Paste your personal Buffer access token to enable automatic posting.</p>
 
-                        <BufferTokenForm initialToken={restaurant.connected_accounts?.find((a: any) => a.platform === 'buffer')?.access_token || ''} />
+                        <BufferTokenForm initialToken={restaurant.connected_accounts?.find((a: any) => a.platform === 'buffer')?.buffer_access_token || ''} />
                     </div>
 
                 </div>

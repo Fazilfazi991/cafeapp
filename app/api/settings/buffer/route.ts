@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         if (accounts && accounts.length > 0) {
             const { error: updateError } = await supabase
                 .from('connected_accounts')
-                .update({ access_token: token, is_active: true })
+                .update({ buffer_access_token: token, is_active: true })
                 .eq('id', accounts[0].id)
 
             if (updateError) {
@@ -55,14 +55,14 @@ export async function POST(req: Request) {
                 .insert({
                     restaurant_id: restaurant.id,
                     platform: 'buffer',
-                    access_token: token,
+                    buffer_access_token: token,
                     is_active: true,
                     platform_user_id: 'manual_token'
                 })
 
             if (insertError) {
                 console.error("BUFFER SAVE INSERT ERROR:", insertError)
-                return NextResponse.json({ error: 'Database error inserting account' }, { status: 500 })
+                return NextResponse.json({ error: `DB Insert Error: ${insertError.message || JSON.stringify(insertError)}` }, { status: 500 })
             }
         }
 

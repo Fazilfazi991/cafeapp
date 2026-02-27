@@ -45,13 +45,13 @@ export async function POST(req: Request) {
         // 2. Fetch connected Buffer accounts
         const { data: accounts } = await supabase
             .from('connected_accounts')
-            .select('access_token')
+            .select('buffer_access_token')
             .eq('restaurant_id', restaurant.id)
             .eq('platform', 'buffer')
             .eq('is_active', true)
             .limit(1)
 
-        const bufferToken = accounts?.[0]?.access_token
+        const bufferToken = accounts?.[0]?.buffer_access_token
 
         if (!bufferToken) {
             return NextResponse.json({ error: 'Buffer account not connected. Please add your access token in Settings.' }, { status: 400 })
