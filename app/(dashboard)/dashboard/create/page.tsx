@@ -134,7 +134,7 @@ export default function CreatePostPage() {
             const data = await response.json()
 
             if (!response.ok) {
-                throw new Error(data || 'Failed to schedule post')
+                throw new Error(data.error || 'Failed to schedule post')
             }
 
             // Normally we'd redirect or show a success modal

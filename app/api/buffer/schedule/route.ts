@@ -8,7 +8,7 @@ export async function POST(req: Request) {
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
-            return new NextResponse('Unauthorized', { status: 401 })
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const body = await req.json()
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         } = body
 
         if (!platform || !caption || !scheduledAt) {
-            return new NextResponse('Missing required fields', { status: 400 })
+            return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
         }
 
         // 1. Get restaurant and check limits
@@ -33,13 +33,13 @@ export async function POST(req: Request) {
 
         const restaurant = restaurants?.[0]
         if (!restaurant) {
-            return new NextResponse('Restaurant not found', { status: 404 })
+            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
         }
 
         // Rough plan limit check
         const limit = restaurant.plan === 'free' ? 3 : restaurant.plan === 'starter' ? 20 : 9999
         if (restaurant.posts_used_this_month >= limit) {
-            return new NextResponse('Monthly post limit reached', { status: 403 })
+            return NextResponse.json({ error: 'Monthly post limit reached' }, { status: 403 })
         }
 
         // 2. Fetch connected Buffer accounts
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
         const bufferToken = accounts?.[0]?.access_token
 
         if (!bufferToken) {
-            return new NextResponse('Buffer account not connected. Please add your access token in Settings.', { status: 400 })
+            return NextResponse.json({ error: 'Buffer account not connected. Please add your access token in Settings.' }, { status: 400 })
         }
 
         // For MVP, we pass a hardcoded profile ID array. 
@@ -104,6 +104,6 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error('[BUFFER_SCHEDULE_ERROR]', error)
-        return new NextResponse(error.message || 'Internal Error', { status: 500 })
+        return NextResponse.json({ error: error.message || 'Internal Error' }, { status: 500 })
     }
 }
