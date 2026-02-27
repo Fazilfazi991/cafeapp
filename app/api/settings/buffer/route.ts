@@ -42,7 +42,7 @@ export async function POST(req: Request) {
         if (accounts && accounts.length > 0) {
             const { error: updateError } = await supabase
                 .from('connected_accounts')
-                .update({ buffer_access_token: token, is_active: true })
+                .update({ buffer_access_token: token })
                 .eq('id', accounts[0].id)
 
             if (updateError) {
@@ -55,9 +55,7 @@ export async function POST(req: Request) {
                 .insert({
                     restaurant_id: restaurant.id,
                     platform: 'buffer',
-                    buffer_access_token: token,
-                    is_active: true,
-                    platform_user_id: 'manual_token'
+                    buffer_access_token: token
                 })
 
             if (insertError) {

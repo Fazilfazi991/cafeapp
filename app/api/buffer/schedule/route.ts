@@ -48,7 +48,6 @@ export async function POST(req: Request) {
             .select('buffer_access_token')
             .eq('restaurant_id', restaurant.id)
             .eq('platform', 'buffer')
-            .eq('is_active', true)
             .limit(1)
 
         const bufferToken = accounts?.[0]?.buffer_access_token
