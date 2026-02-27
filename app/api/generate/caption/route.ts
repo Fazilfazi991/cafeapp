@@ -8,14 +8,14 @@ export async function POST(req: Request) {
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
-            return new NextResponse('Unauthorized', { status: 401 })
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const body = await req.json()
         const { platform, postType, extraContext } = body
 
         if (!platform || !postType) {
-            return new NextResponse('Missing platform or postType', { status: 400 })
+            return NextResponse.json({ error: 'Missing platform or postType' }, { status: 400 })
         }
 
         // Get restaurant details for context
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
         const restaurant = restaurants?.[0]
         if (!restaurant) {
-            return new NextResponse('Restaurant not found', { status: 404 })
+            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
         }
 
         const captions = await generateCaptions(
@@ -44,6 +44,6 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error('[CAPTION_GENERATE_ERROR]', error)
-        return new NextResponse(error.message || 'Internal Error', { status: 500 })
+        return NextResponse.json({ error: error.message || 'Internal Error' }, { status: 500 })
     }
 }

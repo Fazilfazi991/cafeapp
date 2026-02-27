@@ -41,17 +41,17 @@ export default function CreatePostPage() {
 
         try {
             if (fileType === 'video') {
-                // 1. Get video brief from Gemini
-                const videoRes = await fetch('/api/generate/video', {
+                const res = await fetch('/api/generate/video', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ videoUrl: uploadedUrl })
-                }).then(res => res.json())
+                })
+                const text = await res.text()
+                let videoRes;
+                try { videoRes = JSON.parse(text) } catch (e) { throw new Error(text) }
+                if (!res.ok) throw new Error(videoRes.error || text)
 
-                if (videoRes.error) throw new Error(videoRes.error)
-
-                // 2. Generate captions using that brief
-                const captionRes = await fetch('/api/generate/caption', {
+                const capRes = await fetch('/api/generate/caption', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -59,25 +59,27 @@ export default function CreatePostPage() {
                         postType: fileType,
                         extraContext: videoRes.brief
                     })
-                }).then(res => res.json())
-
-                if (captionRes.error) throw new Error(captionRes.error)
+                })
+                const capText = await capRes.text()
+                let captionRes;
+                try { captionRes = JSON.parse(capText) } catch (e) { throw new Error(capText) }
+                if (!capRes.ok) throw new Error(captionRes.error || capText)
 
                 setCaptions(captionRes.captions)
                 setSelectedCaption(captionRes.captions.option1)
                 setStep(3)
 
             } else {
-                // Image flow: Generate poster in parallel with captions for speed
                 const posterPromise = fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ imageUrl: uploadedUrl })
                 }).then(async res => {
                     const text = await res.text()
-                    console.log('Poster Response:', text)
-                    if (!res.ok) throw new Error(text)
-                    return JSON.parse(text)
+                    let data;
+                    try { data = JSON.parse(text) } catch (e) { throw new Error(text) }
+                    if (!res.ok) throw new Error(data.error || text)
+                    return data
                 })
 
                 const captionPromise = fetch('/api/generate/caption', {
@@ -86,15 +88,13 @@ export default function CreatePostPage() {
                     body: JSON.stringify({ platform: selectedPlatform, postType: fileType })
                 }).then(async res => {
                     const text = await res.text()
-                    console.log('Caption Response:', text)
-                    if (!res.ok) throw new Error(text)
-                    return JSON.parse(text)
+                    let data;
+                    try { data = JSON.parse(text) } catch (e) { throw new Error(text) }
+                    if (!res.ok) throw new Error(data.error || text)
+                    return data
                 })
 
                 const [posterRes, captionRes] = await Promise.all([posterPromise, captionPromise])
-
-                if (posterRes.error) throw new Error(posterRes.error)
-                if (captionRes.error) throw new Error(captionRes.error)
 
                 setPosterUrl(posterRes.posterUrl)
                 setCaptions(captionRes.captions)
@@ -103,8 +103,13 @@ export default function CreatePostPage() {
             }
 
         } catch (err: any) {
-            console.error(err)
-            setError(err.message || 'Failed to generate AI content.')
+            console.error('Generate Error:', err)
+            // Prevent [object Object] from showing up
+            let errMsg = err?.message || err;
+            if (typeof errMsg === 'object') {
+                errMsg = JSON.stringify(errMsg);
+            }
+            setError(String(errMsg))
         } finally {
             setIsGenerating(false)
         }

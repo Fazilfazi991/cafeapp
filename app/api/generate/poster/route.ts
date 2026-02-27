@@ -8,14 +8,14 @@ export async function POST(req: Request) {
         const { data: { user } } = await supabase.auth.getUser()
 
         if (!user) {
-            return new NextResponse('Unauthorized', { status: 401 })
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
         }
 
         const body = await req.json()
         const { imageUrl } = body
 
         if (!imageUrl) {
-            return new NextResponse('Missing image URL', { status: 400 })
+            return NextResponse.json({ error: 'Missing image URL' }, { status: 400 })
         }
 
         // Get brand settings
@@ -27,7 +27,7 @@ export async function POST(req: Request) {
 
         const restaurant = restaurants?.[0]
         if (!restaurant) {
-            return new NextResponse('Restaurant not found', { status: 404 })
+            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
         }
 
         const brandColor = restaurant.brand_settings?.[0]?.primary_color || '#FF6B35'
@@ -50,6 +50,6 @@ export async function POST(req: Request) {
 
     } catch (error: any) {
         console.error('[POSTER_GENERATE_ERROR]', error)
-        return new NextResponse(error.message || 'Internal Error', { status: 500 })
+        return NextResponse.json({ error: error.message || 'Internal Error' }, { status: 500 })
     }
 }
