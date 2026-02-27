@@ -14,8 +14,9 @@ export async function getBufferProfiles(accessToken: string) {
   });
 
   if (!response.ok) {
-    const errData = await response.json().catch(() => null)
-    throw new Error(`Buffer API Error fetching profiles: ${errData?.message || response.statusText}`);
+    const errText = await response.text()
+    console.error("BUFFER PROFILE FETCH RAW ERROR:", errText, "STATUS:", response.status)
+    throw new Error(`Buffer API Error fetching profiles: ${errText || response.statusText}`);
   }
 
   const data = await response.json();
