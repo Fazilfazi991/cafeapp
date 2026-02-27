@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase-server'
-import { schedulePostToBuffer } from '@/lib/buffer'
+import { schedulePostToBuffer, getBufferProfiles } from '@/lib/buffer'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -56,20 +56,32 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Buffer account not connected. Please add your access token in Settings.' }, { status: 400 })
         }
 
-        // For MVP, we pass a hardcoded profile ID array. 
-        // In a full implementation, you'd fetch the user's actual Buffer profiles using another API call.
-        const mockProfileIds = ['mock_profile_1']
+        // 3. Fetch actual profiles from Buffer
+        const profiles = await getBufferProfiles(bufferToken)
+        if (!profiles || profiles.length === 0) {
+            return NextResponse.json({ error: 'No social profiles found on your Buffer account. Please connect some channels on Buffer.com first.' }, { status: 400 })
+        }
 
-        // 3. Schedule via Buffer
+        // Match the requested platform to a Buffer service name
+        const bufferServiceMatch = platform === 'gmb' ? 'googlebusinessprofile' : platform
+        const targetProfiles = profiles.filter((p: any) => p.service === bufferServiceMatch)
+
+        if (targetProfiles.length === 0) {
+            return NextResponse.json({ error: `Could not find a connected ${platform} page on your Buffer account. Please add it first.` }, { status: 400 })
+        }
+
+        const profileIds = targetProfiles.map((p: any) => p.id)
+
+        // 4. Schedule via Buffer
         const bufferPostIds = await schedulePostToBuffer(
             bufferToken,
-            mockProfileIds,
+            profileIds,
             caption,
             [posterUrl || mediaUrl], // prefer the generated poster
             new Date(scheduledAt)
         )
 
-        // 4. Save to our database
+        // 5. Save to our database
         // We would link this to the media_library via media_id, but we'll accept raw urls for MVP
         const { data: postRecord, error: insertError } = await supabase
             .from('posts')
@@ -93,7 +105,7 @@ export async function POST(req: Request) {
 
         console.log('Successfully inserted post:', postRecord);
 
-        // 5. Increment usage counter
+        // 6. Increment usage counter
         await supabase
             .from('restaurants')
             .update({ posts_used_this_month: restaurant.posts_used_this_month + 1 })

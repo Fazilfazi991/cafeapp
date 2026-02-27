@@ -6,6 +6,22 @@
 // we will mock the Buffer scheduling logic here to demonstrate the architecture,
 // but it will seamlessly swap to actual API calls once OAuth is configured.
 
+export async function getBufferProfiles(accessToken: string) {
+  const response = await fetch('https://api.bufferapp.com/1/profiles.json', {
+    headers: {
+      'Authorization': `Bearer ${accessToken}`
+    }
+  });
+
+  if (!response.ok) {
+    const errData = await response.json().catch(() => null)
+    throw new Error(`Buffer API Error fetching profiles: ${errData?.message || response.statusText}`);
+  }
+
+  const data = await response.json();
+  return data; // Array of profile objects
+}
+
 export async function schedulePostToBuffer(
   accessToken: string,
   profileIds: string[],
@@ -14,15 +30,15 @@ export async function schedulePostToBuffer(
   scheduledAt: Date
 ) {
   try {
-    // This is the actual shape of the Buffer Create Post API
-    const body = {
-      profile_ids: profileIds,
-      text: text,
-      media: {
-        ...(mediaUrls.length > 0 && { photo: mediaUrls[0] }) // buffer uses specific fields depending on media type
-      },
-      scheduled_at: scheduledAt.toISOString(),
-    };
+    const params = new URLSearchParams();
+    profileIds.forEach(id => params.append('profile_ids[]', id));
+    params.append('text', text);
+
+    if (mediaUrls.length > 0) {
+      params.append('media[photo]', mediaUrls[0]);
+    }
+
+    params.append('scheduled_at', scheduledAt.toISOString());
 
     // The real API call:
     const response = await fetch('https://api.bufferapp.com/1/updates/create.json', {
@@ -31,13 +47,12 @@ export async function schedulePostToBuffer(
         'Content-Type': 'application/x-www-form-urlencoded',
         'Authorization': `Bearer ${accessToken}`
       },
-      // @ts-ignore
-      body: new URLSearchParams(body)
+      body: params
     });
 
     if (!response.ok) {
       const errData = await response.json().catch(() => null)
-      throw new Error(`Buffer API Error: ${errData?.message || response.statusText}`);
+      throw new Error(`Buffer API Error scheduling: ${errData?.message || response.statusText}`);
     }
 
     const data = await response.json();
