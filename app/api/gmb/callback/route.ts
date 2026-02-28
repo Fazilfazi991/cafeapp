@@ -55,7 +55,6 @@ export async function GET(req: Request) {
             google_access_token: tokens.access_token,
             google_refresh_token: tokens.refresh_token,
             gmb_account_id: accountId,
-            token_expires_at: tokens.expires_at,
             is_active: true
         }
 

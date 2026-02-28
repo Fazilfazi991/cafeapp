@@ -37,17 +37,28 @@ export async function GET(req: Request) {
                 if (post.platform === 'gmb') {
                     const { data: account } = await supabase
                         .from('connected_accounts')
-                        .select('gmb_location_name')
+                        .select('id')
                         .eq('restaurant_id', post.restaurant_id)
                         .eq('platform', 'gmb')
                         .single()
 
-                    if (!account || !account.gmb_location_name) {
+                    if (!account) {
                         throw new Error('GMB account disconnected')
                     }
 
                     const accessToken = await getValidGmbToken(post.restaurant_id)
-                    await createGMBPost(account.gmb_location_name, post.image_url, post.caption, accessToken)
+                    
+                    const { getGMBAccounts, getGMBLocations } = await import('@/lib/gmb')
+                    const accounts = await getGMBAccounts(accessToken)
+                    if (!accounts || accounts.length === 0) throw new Error('No GMB accounts found')
+                    
+                    const accountId = accounts[0].name.split('/')[1]
+                    const locations = await getGMBLocations(accountId, accessToken)
+                    if (!locations || locations.length === 0) throw new Error('No GMB locations found')
+                    
+                    const locationName = locations[0].name
+
+                    await createGMBPost(locationName, post.image_url, post.caption, accessToken)
 
                     await supabase
                         .from('posts')

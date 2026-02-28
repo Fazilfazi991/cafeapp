@@ -31,21 +31,20 @@ export async function POST(req: Request) {
 
         const { data: account } = await supabase
             .from('connected_accounts')
-            .select('gmb_location_name')
+            .select('id')
             .eq('restaurant_id', restaurant.id)
             .eq('platform', 'gmb')
             .single()
 
-        if (!account || !account.gmb_location_name) {
+        if (!account) {
             return NextResponse.json({ error: 'GMB account not connected' }, { status: 400 })
         }
 
-        // Validate token exists, even if we don't use it now, to ensure they are authenticated
+        // Validate token exists to ensure they are authenticated
         const accessToken = await getValidGmbToken(restaurant.id)
 
         const post = await scheduleGMBPost(
             restaurant.id,
-            account.gmb_location_name,
             imageUrl,
             caption,
             scheduledTime,

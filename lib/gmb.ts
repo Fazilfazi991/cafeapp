@@ -144,7 +144,6 @@ export async function createGMBPost(locationName: string, imageUrl: string, capt
 
 export async function scheduleGMBPost(
     restaurantId: string,
-    locationName: string,
     imageUrl: string,
     caption: string,
     scheduledTime: string,
@@ -159,7 +158,6 @@ export async function scheduleGMBPost(
         caption: caption,
         scheduled_at: scheduledTime,
         status: 'scheduled',
-        gmb_location_name: locationName,
     }).select().single();
 
     if (error) {

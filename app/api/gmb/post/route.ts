@@ -25,16 +25,15 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
         }
 
-        // Get connected account to get locationName
         const { data: account } = await supabase
             .from('connected_accounts')
-            .select('gmb_location_name')
+            .select('id')
             .eq('restaurant_id', restaurant.id)
             .eq('platform', 'gmb')
             .single()
 
-        if (!account || !account.gmb_location_name) {
-            return NextResponse.json({ error: 'GMB account or location not configured' }, { status: 400 })
+        if (!account) {
+            return NextResponse.json({ error: 'GMB account not configured' }, { status: 400 })
         }
 
         if (!imageUrl || !caption) {
@@ -43,7 +42,21 @@ export async function POST(req: Request) {
 
         const accessToken = await getValidGmbToken(restaurant.id)
 
-        const gmbPostId = await createGMBPost(account.gmb_location_name, imageUrl, caption, accessToken)
+        // Fetch location dynamically
+        const { getGMBAccounts, getGMBLocations } = await import('@/lib/gmb')
+        const accounts = await getGMBAccounts(accessToken)
+        if (!accounts || accounts.length === 0) {
+            return NextResponse.json({ error: 'No GMB accounts found for this user' }, { status: 400 })
+        }
+        const accountId = accounts[0].name.split('/')[1]
+
+        const locations = await getGMBLocations(accountId, accessToken)
+        if (!locations || locations.length === 0) {
+            return NextResponse.json({ error: 'No GMB locations found for this account' }, { status: 400 })
+        }
+        const locationName = locations[0].name
+
+        const gmbPostId = await createGMBPost(locationName, imageUrl, caption, accessToken)
 
         if (postId) {
             await supabase
@@ -59,8 +72,7 @@ export async function POST(req: Request) {
                 image_url: imageUrl,
                 caption: caption,
                 status: 'published',
-                published_at: new Date().toISOString(),
-                gmb_location_name: account.gmb_location_name
+                published_at: new Date().toISOString()
             })
         }
 
