@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import GmbLocationManager from '@/components/settings/GmbLocationManager'
+import SubmitButton from '@/components/settings/SubmitButton'
 
 export default async function SettingsPage() {
     const supabase = createClient()
@@ -143,9 +144,7 @@ export default async function SettingsPage() {
                                 </select>
                             </div>
                         </div>
-                        <button className="bg-[#1A1A1A] text-white rounded-md px-4 py-2 mt-2 font-medium hover:bg-gray-800 transition-colors w-fit">
-                            Save Changes
-                        </button>
+                        <SubmitButton />
                     </form>
                 </div>
 
