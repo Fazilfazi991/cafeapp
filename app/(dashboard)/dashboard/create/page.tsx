@@ -1,13 +1,21 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import MediaUploader from '@/components/create/MediaUploader'
-import { Loader2, Wand2, Calendar, LayoutTemplate } from 'lucide-react'
+import { Loader2, Wand2, Calendar, LayoutTemplate, Info } from 'lucide-react'
 
 type Platform = 'instagram' | 'facebook' | 'gmb'
 
 export default function CreatePostPage() {
     const [step, setStep] = useState<1 | 2 | 3>(1)
+
+    const [restaurantInfo, setRestaurantInfo] = useState<any>(null)
+
+    useEffect(() => {
+        fetch('/api/restaurants/me').then(r => r.json()).then(data => {
+            if (!data.error) setRestaurantInfo(data)
+        })
+    }, [])
 
     // Media State
     const [uploadedUrl, setUploadedUrl] = useState<string | null>(null)
@@ -18,14 +26,30 @@ export default function CreatePostPage() {
     const [isGenerating, setIsGenerating] = useState(false)
     const [posterUrl, setPosterUrl] = useState<string | null>(null)
     const [captions, setCaptions] = useState<{ option1: string, option2: string, option3: string } | null>(null)
+    const [gmbCaption, setGmbCaption] = useState<string | null>(null)
 
     // Selection State
-    const [selectedPlatform, setSelectedPlatform] = useState<Platform>('instagram')
+    const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['instagram'])
     const [selectedCaption, setSelectedCaption] = useState<string>('')
 
     // Scheduling State
     const [isScheduling, setIsScheduling] = useState(false)
     const [scheduledDate, setScheduledDate] = useState<string>('')
+
+    const handleTogglePlatform = (p: Platform) => {
+        if (p === 'gmb') {
+            const canAccess = restaurantInfo?.plan === 'pro' || restaurantInfo?.plan === 'business';
+            if (!canAccess) return; // Disallow selection
+        }
+
+        setSelectedPlatforms(prev => {
+            if (prev.includes(p)) {
+                if (prev.length === 1) return prev; // Keep at least one
+                return prev.filter(x => x !== p)
+            }
+            return [...prev, p]
+        })
+    }
 
     const handleUploadComplete = async (url: string, type: 'image' | 'video', name: string) => {
         setUploadedUrl(url)
@@ -40,6 +64,10 @@ export default function CreatePostPage() {
         setError(null)
 
         try {
+            const primaryPlatform = selectedPlatforms.find(p => p !== 'gmb') || 'instagram'
+            const hasGMB = selectedPlatforms.includes('gmb')
+
+            let videoBrief = ''
             if (fileType === 'video') {
                 const res = await fetch('/api/generate/video', {
                     method: 'POST',
@@ -50,61 +78,61 @@ export default function CreatePostPage() {
                 let videoRes;
                 try { videoRes = JSON.parse(text) } catch (e) { throw new Error(text) }
                 if (!res.ok) throw new Error(videoRes.error || text)
-
-                const capRes = await fetch('/api/generate/caption', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        platform: selectedPlatform,
-                        postType: fileType,
-                        extraContext: videoRes.brief
-                    })
-                })
-                const capText = await capRes.text()
-                let captionRes;
-                try { captionRes = JSON.parse(capText) } catch (e) { throw new Error(capText) }
-                if (!capRes.ok) throw new Error(captionRes.error || capText)
-
-                setCaptions(captionRes.captions)
-                setSelectedCaption(captionRes.captions.option1)
-                setStep(3)
-
+                videoBrief = videoRes.brief
             } else {
-                const posterPromise = fetch('/api/generate/poster', {
+                const res = await fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ imageUrl: uploadedUrl })
-                }).then(async res => {
-                    const text = await res.text()
-                    let data;
-                    try { data = JSON.parse(text) } catch (e) { throw new Error(text) }
-                    if (!res.ok) throw new Error(data.error || text)
-                    return data
                 })
+                const text = await res.text()
+                let data;
+                try { data = JSON.parse(text) } catch (e) { throw new Error(text) }
+                if (!res.ok) throw new Error(data.error || text)
+                setPosterUrl(data.posterUrl)
+            }
 
-                const captionPromise = fetch('/api/generate/caption', {
+            const capRes = await fetch('/api/generate/caption', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    platform: primaryPlatform,
+                    postType: fileType,
+                    extraContext: videoBrief
+                })
+            })
+            const capText = await capRes.text()
+            let captionRes;
+            try { captionRes = JSON.parse(capText) } catch (e) { throw new Error(capText) }
+            if (!capRes.ok) throw new Error(captionRes.error || capText)
+
+            setCaptions(captionRes.captions)
+            setSelectedCaption(captionRes.captions.option1)
+
+            if (hasGMB) {
+                const gmbRes = await fetch('/api/generate/caption', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ platform: selectedPlatform, postType: fileType })
-                }).then(async res => {
-                    const text = await res.text()
-                    let data;
-                    try { data = JSON.parse(text) } catch (e) { throw new Error(text) }
-                    if (!res.ok) throw new Error(data.error || text)
-                    return data
+                    body: JSON.stringify({
+                        platform: 'gmb',
+                        postType: fileType,
+                        extraContext: videoBrief
+                    })
                 })
-
-                const [posterRes, captionRes] = await Promise.all([posterPromise, captionPromise])
-
-                setPosterUrl(posterRes.posterUrl)
-                setCaptions(captionRes.captions)
-                setSelectedCaption(captionRes.captions.option1)
-                setStep(3)
+                const gmbText = await gmbRes.text()
+                let gmbCaptionRes;
+                try { gmbCaptionRes = JSON.parse(gmbText) } catch (e) { throw new Error(gmbText) }
+                if (gmbRes.ok && gmbCaptionRes.captions) {
+                    setGmbCaption(gmbCaptionRes.captions.option1)
+                }
+            } else {
+                setGmbCaption(null)
             }
+
+            setStep(3)
 
         } catch (err: any) {
             console.error('Generate Error:', err)
-            // Prevent [object Object] from showing up
             let errMsg = err?.message || err;
             if (typeof errMsg === 'object') {
                 errMsg = JSON.stringify(errMsg);
@@ -121,35 +149,46 @@ export default function CreatePostPage() {
         setError(null)
 
         try {
-            // Default to "now" if no date selected for MVP purposes
             const postDate = scheduledDate ? new Date(scheduledDate) : new Date(Date.now() + 5 * 60000)
 
-            const response = await fetch('/api/buffer/schedule', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    platform: selectedPlatform,
-                    mediaUrl: uploadedUrl,
-                    posterUrl: posterUrl,
-                    caption: selectedCaption,
-                    scheduledAt: postDate.toISOString()
-                })
-            })
-
-            const data = await response.json()
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to schedule post')
+            for (const platform of selectedPlatforms) {
+                if (platform === 'gmb') {
+                    const response = await fetch('/api/gmb/schedule', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            imageUrl: posterUrl || uploadedUrl,
+                            caption: gmbCaption || selectedCaption,
+                            scheduledTime: postDate.toISOString()
+                        })
+                    })
+                    const data = await response.json()
+                    if (!response.ok) throw new Error(`[GMB] ${data.error || 'Failed to schedule post'}`)
+                } else {
+                    const response = await fetch('/api/buffer/schedule', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            platform: platform,
+                            mediaUrl: uploadedUrl,
+                            posterUrl: posterUrl,
+                            caption: selectedCaption,
+                            scheduledAt: postDate.toISOString()
+                        })
+                    })
+                    const data = await response.json()
+                    if (!response.ok) throw new Error(`[${platform}] ${data.error || 'Failed to schedule post'}`)
+                }
             }
 
-            // Normally we'd redirect or show a success modal
-            alert('Post scheduled successfully!')
-            // Reset form
+            alert('Posts scheduled successfully!')
             setStep(1)
             setUploadedUrl(null)
             setPosterUrl(null)
             setCaptions(null)
+            setGmbCaption(null)
             setScheduledDate('')
+            setSelectedPlatforms(['instagram'])
 
         } catch (err: any) {
             console.error(err)
@@ -167,7 +206,6 @@ export default function CreatePostPage() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-
                 {/* Left Column: Workflow */}
                 <div className="flex flex-col gap-6">
 
@@ -197,7 +235,7 @@ export default function CreatePostPage() {
                                     </div>
                                     <div>
                                         <p className="font-medium text-sm">Media uploaded successfully</p>
-                                        <button onClick={() => { setUploadedUrl(null); setStep(1); setPosterUrl(null); setCaptions(null); }} className="text-xs text-blue-600 hover:underline">Change file</button>
+                                        <button onClick={() => { setUploadedUrl(null); setStep(1); setPosterUrl(null); setCaptions(null); setGmbCaption(null); }} className="text-xs text-blue-600 hover:underline">Change file</button>
                                     </div>
                                 </div>
                             </div>
@@ -211,18 +249,47 @@ export default function CreatePostPage() {
                             AI Generation
                         </h2>
 
-                        <div className="mb-4">
-                            <label className="text-sm font-medium mb-2 block">Optimize for Platform:</label>
-                            <div className="flex gap-2">
-                                {(['instagram', 'facebook', 'gmb'] as Platform[]).map(p => (
-                                    <button
-                                        key={p}
-                                        onClick={() => setSelectedPlatform(p)}
-                                        className={`px-4 py-2 text-sm font-medium rounded-md border capitalize transition-colors ${selectedPlatform === p ? 'bg-[#FF6B35] text-white border-[#FF6B35]' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
-                                    >
-                                        {p === 'gmb' ? 'Google Business' : p}
-                                    </button>
-                                ))}
+                        <div className="mb-6">
+                            <label className="text-sm font-medium mb-3 block">Select Platforms:</label>
+                            <div className="flex flex-wrap gap-3">
+                                {(['instagram', 'facebook', 'gmb'] as Platform[]).map(p => {
+                                    const isSelected = selectedPlatforms.includes(p);
+                                    let isDisabled = false;
+                                    let tooltip = '';
+
+                                    if (p === 'gmb') {
+                                        const canAccessGMB = restaurantInfo?.plan === 'pro' || restaurantInfo?.plan === 'business';
+                                        if (!canAccessGMB) {
+                                            isDisabled = true;
+                                            tooltip = "Upgrade to Pro to post to GMB";
+                                        }
+                                    }
+
+                                    return (
+                                        <div key={p} className="relative group flex-1 min-w-[120px]">
+                                            <button
+                                                onClick={() => handleTogglePlatform(p)}
+                                                disabled={isDisabled}
+                                                className={`w-full px-4 py-3 text-sm font-semibold rounded-lg border capitalize transition-all ${isSelected
+                                                        ? 'bg-[#FF6B35] text-white border-[#FF6B35] shadow-md'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+                                                    } ${isDisabled
+                                                        ? 'opacity-50 cursor-not-allowed bg-gray-100'
+                                                        : ''
+                                                    }`}
+                                            >
+                                                {p === 'gmb' ? 'Google My Business' : p}
+                                            </button>
+
+                                            {tooltip && (
+                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 flex items-center gap-1 shadow-lg">
+                                                    <Info size={14} className="text-orange-400" />
+                                                    {tooltip}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
 
@@ -247,6 +314,7 @@ export default function CreatePostPage() {
                                 Choose Caption
                             </h2>
                             <div className="flex flex-col gap-3">
+                                <p className="text-sm font-medium text-gray-700 mb-1">Primary Platform Caption:</p>
                                 {[captions.option1, captions.option2, captions.option3].map((opt, i) => (
                                     <div
                                         key={i}
@@ -257,6 +325,19 @@ export default function CreatePostPage() {
                                     </div>
                                 ))}
                             </div>
+
+                            {selectedPlatforms.includes('gmb') && gmbCaption && (
+                                <div className="mt-6 pt-6 border-t">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <p className="text-sm font-medium text-gray-700">Google My Business Caption:</p>
+                                        <span className="text-[10px] bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Auto-optimized</span>
+                                    </div>
+                                    <div className="p-4 border rounded-lg bg-gray-50 text-sm ring-1 ring-gray-200">
+                                        {gmbCaption}
+                                    </div>
+                                    <p className="text-xs text-gray-500 mt-2">This dedicated short caption will be used when posting to Google.</p>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -270,13 +351,11 @@ export default function CreatePostPage() {
                     </h2>
 
                     <div className="flex-1 bg-gray-50 rounded-xl overflow-hidden border flex flex-col relative max-w-[400px] mx-auto w-full shadow-inner">
-                        {/* Instagram Style Header Mockup */}
                         <div className="h-14 bg-white border-b flex items-center px-4 gap-3 shrink-0">
                             <div className="w-8 h-8 rounded-full bg-gray-200"></div>
                             <div className="font-bold text-sm">Your Restaurant</div>
                         </div>
 
-                        {/* Media Area */}
                         <div className="aspect-square bg-gray-100 flex items-center justify-center shrink-0 w-full overflow-hidden border-b relative">
                             {isGenerating ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-10 gap-3">
@@ -295,7 +374,6 @@ export default function CreatePostPage() {
                             )}
                         </div>
 
-                        {/* Caption Area */}
                         <div className="p-4 bg-white flex-1 overflow-y-auto">
                             {isGenerating ? (
                                 <div className="space-y-2">

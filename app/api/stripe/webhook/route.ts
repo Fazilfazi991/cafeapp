@@ -12,7 +12,7 @@ export async function POST(req: Request) {
     // This requires the Stripe library, so we will stub it gracefully if the user doesn't have stripe keys.
     try {
         const Stripe = require('stripe').default;
-        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+        const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_test_dummy', {
             apiVersion: '2024-04-10',
         });
 
