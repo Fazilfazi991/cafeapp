@@ -7,8 +7,7 @@ export interface Restaurant {
   website?: string;
   tone_of_voice?: 'casual' | 'fun' | 'professional' | 'bold';
   onboarding_complete: boolean;
-  stripe_customer_id?: string;
-  stripe_subscription_id?: string;
+
   plan: 'active' | 'expired' | 'free' | 'starter' | 'pro' | 'business'; // keeping legacy types for safety temporarily
   plan_start_date?: string;
   plan_end_date?: string;
@@ -88,7 +87,7 @@ export interface Subscription {
   gmb_included: boolean;
   multi_location: boolean;
   price_monthly: number;
-  stripe_subscription_id?: string;
+
   status: 'active' | 'cancelled' | 'past_due';
   current_period_end: string;
 }

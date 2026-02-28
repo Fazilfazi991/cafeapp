@@ -21,9 +21,7 @@ export default async function Step3() {
         redirect('/onboarding/step-1') // kick back if they skipped steps
     }
 
-    // Deduplicated chooseFreePlan definition
-
-    const chooseFreePlan = async () => {
+    const choosePlan = async (plan: 'free' | 'starter' | 'pro') => {
         'use server'
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
@@ -33,7 +31,7 @@ export default async function Step3() {
             .from('restaurants')
             .update({
                 onboarding_complete: true,
-                plan: 'free'
+                plan: plan
             })
             .eq('user_id', user.id)
 
@@ -101,7 +99,7 @@ export default async function Step3() {
                                 <li>✓ 1 Platform</li>
                                 <li>✕ No GMB Posts</li>
                             </ul>
-                            <form action={chooseFreePlan}>
+                            <form action={choosePlan.bind(null, 'free')}>
                                 <button className="w-full py-2 bg-gray-100 text-[#1A1A1A] rounded-md font-medium hover:bg-gray-200 transition-colors">
                                     Choose Free
                                 </button>
@@ -120,9 +118,7 @@ export default async function Step3() {
                                 <li>✓ 2 Platforms (IG, FB)</li>
                                 <li>✕ No GMB Posts</li>
                             </ul>
-                            <form action="/api/stripe/checkout" method="POST">
-                                <input type="hidden" name="priceId" value="price_starter" />
-                                <input type="hidden" name="restaurantId" value={restaurant.id} />
+                            <form action={choosePlan.bind(null, 'starter')}>
                                 <button className="w-full py-2 bg-white border border-[#1A1A1A] text-[#1A1A1A] rounded-md font-medium hover:bg-gray-50 transition-colors">
                                     Choose Starter
                                 </button>
@@ -144,9 +140,7 @@ export default async function Step3() {
                                 <li>✓ All Platforms included</li>
                                 <li>✓ GMB SEO Posts included</li>
                             </ul>
-                            <form action="/api/stripe/checkout" method="POST">
-                                <input type="hidden" name="priceId" value="price_pro" />
-                                <input type="hidden" name="restaurantId" value={restaurant.id} />
+                            <form action={choosePlan.bind(null, 'pro')}>
                                 <button className="w-full py-2 bg-[#FF6B35] text-white rounded-md font-medium hover:bg-orange-600 transition-colors shadow-sm">
                                     Choose Pro
                                 </button>

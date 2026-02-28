@@ -86,12 +86,6 @@ export default async function SettingsPage() {
                         )}
                     </div>
 
-                    <form action="/api/stripe/portal" method="POST">
-                        <button disabled className="bg-gray-100 text-gray-400 cursor-not-allowed border rounded-md px-4 py-2 font-medium hover:bg-gray-200 transition-colors">
-                            Manage Billing (Coming Soon)
-                        </button>
-                    </form>
-
                 </div>
 
                 {/* Integrations */}
