@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import { revalidatePath } from 'next/cache'
 import GmbLocationManager from '@/components/settings/GmbLocationManager'
 
 export default async function SettingsPage() {
@@ -31,20 +32,29 @@ export default async function SettingsPage() {
         const business_type = formData.get('business_type') as string
         const font_style = formData.get('font_style') as string
 
-        // Update restaurants table
-        await supabase
-            .from('restaurants')
-            .update({ name, website, phone, address, business_type })
-            .eq('user_id', user.id)
-            
-        // Update brand_settings table
-        await supabase
-            .from('brand_settings')
-            .update({ font_style })
-            .eq('restaurant_id', restaurant.id)
+        try {
+            // Update restaurants table
+            const { error: restError } = await supabase
+                .from('restaurants')
+                .update({ name, website, phone, address, business_type })
+                .eq('user_id', user.id)
+                
+            if (restError) throw restError;
+                
+            // Update brand_settings table
+            const { error: brandError } = await supabase
+                .from('brand_settings')
+                .update({ font_style })
+                .eq('restaurant_id', restaurant.id)
 
-        // Normally would trigger a revalidatePath here, but simple redirect for now
-        redirect('/dashboard/settings')
+            if (brandError) throw brandError;
+
+        } catch (error) {
+            console.error('Error saving profile:', error);
+            // In a real app we'd return an error state to the form, but for now we'll just log
+        }
+
+        revalidatePath('/dashboard/settings')
     }
 
     // Removed Buffer Server Action - Now using Client Component
