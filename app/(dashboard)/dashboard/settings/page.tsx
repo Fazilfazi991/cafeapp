@@ -42,13 +42,34 @@ export default async function SettingsPage() {
                 
             if (restError) throw restError;
                 
-            // Update brand_settings table
-            const { error: brandError } = await supabase
+            // Check if brand_settings exists
+            const { data: existingBrand } = await supabase
                 .from('brand_settings')
-                .update({ font_style })
+                .select('id')
                 .eq('restaurant_id', restaurant.id)
+                .single()
 
-            if (brandError) throw brandError;
+            if (existingBrand) {
+                // Update brand_settings table
+                const { error: brandError } = await supabase
+                    .from('brand_settings')
+                    .update({ font_style })
+                    .eq('restaurant_id', restaurant.id)
+
+                if (brandError) throw brandError;
+            } else {
+                // Create brand_settings if it doesn't exist yet
+                const { error: brandInsertError } = await supabase
+                    .from('brand_settings')
+                    .insert({ 
+                        restaurant_id: restaurant.id, 
+                        font_style,
+                        primary_color: '#FF6B35', // default
+                        secondary_color: '#1A1A1A' // default
+                    })
+
+                if (brandInsertError) throw brandInsertError;
+            }
 
         } catch (error) {
             console.error('Error saving profile:', error);
