@@ -38,28 +38,17 @@ export async function GET(req: Request) {
                 if (post.platforms && post.platforms.includes('gmb')) {
                     const { data: account } = await supabase
                         .from('connected_accounts')
-                        .select('id')
+                        .select('id, gmb_location_id, gmb_location_name')
                         .eq('restaurant_id', post.restaurant_id)
                         .eq('platform', 'gmb')
                         .single()
 
-                    if (!account) {
-                        throw new Error('GMB account disconnected')
+                    if (!account || !account.gmb_location_id) {
+                        throw new Error('GMB account or location not configured')
                     }
 
                     const accessToken = await getValidGmbToken(post.restaurant_id)
-                    
-                    const { getGMBAccounts, getGMBLocations } = await import('@/lib/gmb')
-                    const accounts = await getGMBAccounts(accessToken)
-                    if (!accounts || accounts.length === 0) throw new Error('No GMB accounts found')
-                    
-                    const accountId = accounts[0].name.split('/')[1]
-                    const locations = await getGMBLocations(accountId, accessToken)
-                    if (!locations || locations.length === 0) throw new Error('No GMB locations found')
-                    
-                    const locationName = locations[0].name
-
-                    await createGMBPost(locationName, post.poster_url, post.selected_caption, accessToken)
+                    await createGMBPost(account.gmb_location_id, post.poster_url, post.selected_caption, accessToken)
 
                     await supabase
                         .from('posts')

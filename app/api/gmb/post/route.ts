@@ -27,13 +27,13 @@ export async function POST(req: Request) {
 
         const { data: account } = await supabase
             .from('connected_accounts')
-            .select('id')
+            .select('id, gmb_location_id, gmb_location_name')
             .eq('restaurant_id', restaurant.id)
             .eq('platform', 'gmb')
             .single()
 
-        if (!account) {
-            return NextResponse.json({ error: 'GMB account not configured' }, { status: 400 })
+        if (!account || !account.gmb_location_id) {
+            return NextResponse.json({ error: 'Please select a GMB location in Settings first' }, { status: 400 })
         }
 
         if (!imageUrl || !caption) {
@@ -42,21 +42,7 @@ export async function POST(req: Request) {
 
         const accessToken = await getValidGmbToken(restaurant.id)
 
-        // Fetch location dynamically
-        const { getGMBAccounts, getGMBLocations } = await import('@/lib/gmb')
-        const accounts = await getGMBAccounts(accessToken)
-        if (!accounts || accounts.length === 0) {
-            return NextResponse.json({ error: 'No GMB accounts found for this user' }, { status: 400 })
-        }
-        const accountId = accounts[0].name.split('/')[1]
-
-        const locations = await getGMBLocations(accountId, accessToken)
-        if (!locations || locations.length === 0) {
-            return NextResponse.json({ error: 'No GMB locations found for this account' }, { status: 400 })
-        }
-        const locationName = locations[0].name
-
-        const gmbPostId = await createGMBPost(locationName, imageUrl, caption, accessToken)
+        const gmbPostId = await createGMBPost(account.gmb_location_id, imageUrl, caption, accessToken)
 
         if (postId) {
             await supabase
