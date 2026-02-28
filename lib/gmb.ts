@@ -153,7 +153,8 @@ export async function scheduleGMBPost(
 
     const { data, error } = await supabase.from('posts').insert({
         restaurant_id: restaurantId,
-        platform: 'gmb',
+        platforms: ['gmb'],
+        post_type: 'image',
         poster_url: imageUrl,
         selected_caption: caption,
         scheduled_at: scheduledTime,

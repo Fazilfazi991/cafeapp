@@ -68,7 +68,8 @@ export async function POST(req: Request) {
             // If there's no postId, we can insert it as a completed record
             await supabase.from('posts').insert({
                 restaurant_id: restaurant.id,
-                platform: 'gmb',
+                platforms: ['gmb'],
+                post_type: 'image',
                 poster_url: imageUrl,
                 selected_caption: caption,
                 status: 'published',

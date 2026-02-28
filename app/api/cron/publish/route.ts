@@ -34,7 +34,8 @@ export async function GET(req: Request) {
 
         for (const post of duePosts) {
             try {
-                if (post.platform === 'gmb') {
+                // If it's a GMB post mapped inside the platforms array
+                if (post.platforms && post.platforms.includes('gmb')) {
                     const { data: account } = await supabase
                         .from('connected_accounts')
                         .select('id')
@@ -69,7 +70,9 @@ export async function GET(req: Request) {
                         .eq('id', post.id)
 
                     processed++
-                } else if (post.platform === 'instagram' || post.platform === 'facebook') {
+                }
+
+                if (post.platforms && (post.platforms.includes('instagram') || post.platforms.includes('facebook'))) {
                     // For Instagram/Facebook, normally we would call postToInstagram or postToFacebook
                     // Assuming that's handled elsewhere or to be mocked for now.
                     console.log(`[CRON] Processing ${post.platform} for post ${post.id}`)
