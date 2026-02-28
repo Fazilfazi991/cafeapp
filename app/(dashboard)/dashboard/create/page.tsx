@@ -67,7 +67,8 @@ export default function CreatePostPage() {
 
             let videoBrief = ''
             if (fileType === 'video') {
-                const res = await fetch('/api/generate/video', {
+                setGenerationProgress('Analyzing video content...')
+                const res = await fetch('/api/generate/video-brief', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ videoUrl: uploadedUrl })
@@ -77,6 +78,7 @@ export default function CreatePostPage() {
                 try { videoRes = JSON.parse(text) } catch (e) { throw new Error(text) }
                 if (!res.ok) throw new Error(videoRes.error || text)
                 videoBrief = videoRes.brief
+            } else {
                 setGenerationProgress('Enhancing photo and generating styles...')
                 const posterRes = await fetch('/api/generate/poster', {
                     method: 'POST',
