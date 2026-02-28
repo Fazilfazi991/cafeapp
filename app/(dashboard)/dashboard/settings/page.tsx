@@ -109,7 +109,6 @@ export default async function SettingsPage() {
                                                 </span>
                                             </div>
                                             <p className="text-sm text-gray-600 mb-1"><span className="font-medium text-gray-800">Location:</span> {gmbAccount.gmb_location_name || 'N/A'}</p>
-                                            <p className="text-sm text-gray-600"><span className="font-medium text-gray-800">Account:</span> {gmbAccount.gmb_account_name || 'N/A'}</p>
                                         </div>
                                         <form action="/api/gmb/disconnect" method="POST">
                                             <button className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-transparent hover:border-red-100">

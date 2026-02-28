@@ -14,14 +14,18 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: 'Missing code or state parameters' }, { status: 400 })
         }
 
+        console.log('[GMB_CALLBACK_START] received code and state:', { hasCode: !!code, state });
         const tokens = await exchangeCodeForTokens(code)
+        console.log('[GMB_CALLBACK_TOKENS] exchanged successfully:', { hasAccess: !!tokens.access_token, hasRefresh: !!tokens.refresh_token });
 
         let accountId = null;
         let locationName = null;
         let accountName = null;
 
         try {
+            console.log('[GMB_CALLBACK_FETCHING_ACCOUNTS] using access token');
             const accounts = await getGMBAccounts(tokens.access_token)
+            console.log('[GMB_CALLBACK_ACCOUNTS_RES]', accounts?.length || 0, 'accounts found');
             if (accounts && accounts.length > 0) {
                 const account = accounts[0]
                 // account.name is like "accounts/123456"
@@ -51,8 +55,6 @@ export async function GET(req: Request) {
             google_access_token: tokens.access_token,
             google_refresh_token: tokens.refresh_token,
             gmb_account_id: accountId,
-            gmb_location_name: locationName,
-            gmb_account_name: accountName, // Adding this since UI asks for it
             token_expires_at: tokens.expires_at,
             is_active: true
         }
