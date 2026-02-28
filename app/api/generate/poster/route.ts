@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
-import { generatePoster } from '@/lib/replicate'
+import { enhancePhoto, generateThreeStyles } from '@/lib/falai'
+import { compositePoster } from '@/lib/poster-compositor'
 import { NextResponse } from 'next/server'
 
 export async function POST(req: Request) {
@@ -21,7 +22,7 @@ export async function POST(req: Request) {
         // Get brand settings
         const { data: restaurants } = await supabase
             .from('restaurants')
-            .select('id, name, cuisine_type, brand_settings(primary_color)')
+            .select('id, name, cuisine_type, business_type, tone_of_voice, phone, address, website, brand_settings(primary_color, secondary_color, logo_url)')
             .eq('user_id', user.id)
             .limit(1)
 
@@ -30,23 +31,66 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
         }
 
-        const brandColor = restaurant.brand_settings?.[0]?.primary_color || '#FF6B35'
+        const brand = restaurant.brand_settings?.[0] || { primary_color: '#FF6B35', logo_url: '' }
 
-        // Call Replicate
-        // TEMPORARILY DISABLED: Bypassing image generation to allow free testing
-        /*
-        const posterUrl = await generatePoster(
-            imageUrl,
-            brandColor,
-            restaurant.name,
-            restaurant.cuisine_type || 'food'
-        )
-        */
+        // STEP 1 - Enhance photo
+        const enhancedUrl = await enhancePhoto(imageUrl)
 
-        // For MVP testing without billed APIs, just return the original image
-        const posterUrl = imageUrl;
+        // STEP 2 - Generate 3 style variations
+        const { minimal, bold, lifestyle } = await generateThreeStyles({
+            imageUrl: enhancedUrl,
+            businessName: restaurant.name,
+            businessType: restaurant.business_type || 'restaurant',
+            cuisine: restaurant.cuisine_type || '',
+            tone: restaurant.tone_of_voice || 'professional',
+            primaryColor: brand.primary_color,
+            secondaryColor: brand.secondary_color || '#000000',
+            caption: body.caption || '' // Not directly used in fal but good for logging or future logic
+        })
 
-        return NextResponse.json({ posterUrl })
+        // STEP 3 - Add logo + contact strip to each
+        const minimalFinal = await compositePoster({
+            posterUrl: minimal,
+            logoUrl: brand.logo_url,
+            businessName: restaurant.name,
+            phone: restaurant.phone,
+            website: restaurant.website,
+            address: restaurant.address,
+            primaryColor: brand.primary_color,
+            secondaryColor: brand.secondary_color || '#000000'
+        })
+        
+        const boldFinal = await compositePoster({
+            posterUrl: bold,
+            logoUrl: brand.logo_url,
+            businessName: restaurant.name,
+            phone: restaurant.phone,
+            website: restaurant.website,
+            address: restaurant.address,
+            primaryColor: brand.primary_color,
+            secondaryColor: brand.secondary_color || '#000000'
+        })
+        
+        const lifestyleFinal = await compositePoster({
+            posterUrl: lifestyle,
+            logoUrl: brand.logo_url,
+            businessName: restaurant.name,
+            phone: restaurant.phone,
+            website: restaurant.website,
+            address: restaurant.address,
+            primaryColor: brand.primary_color,
+            secondaryColor: brand.secondary_color || '#000000'
+        })
+
+        // STEP 4 - Return all three + source
+        return NextResponse.json({ 
+            posters: {
+                minimal: minimalFinal,
+                bold: boldFinal,
+                lifestyle: lifestyleFinal
+            },
+            enhanced_source: enhancedUrl
+        })
 
     } catch (error: any) {
         console.error('[POSTER_GENERATE_ERROR]', error)

@@ -1,54 +1,99 @@
-import { fal } from '@fal-ai/client';
+import { fal } from "@fal-ai/client";
+import { buildPosterPrompt } from "./poster-prompt-builder";
 
-// Configure the client
-// Requires FAL_KEY environment variable to be set
-fal.config({
-    credentials: process.env.FAL_KEY,
-});
+// Configure Fal.ai SDK
+fal.config({ credentials: process.env.FAL_KEY });
 
-export async function generatePoster(
+export async function generatePoster(params: {
     imageUrl: string,
-    brandColor: string,
-    restaurantName: string,
-    cuisineType: string
-): Promise<string> {
-    try {
-        // Standard prompt engineering for a food poster using Flux
-        const prompt = `A highly stylized, professional social media advertisement or poster for a restaurant. 
-    The main focus is the food shown in this image: ${imageUrl}. 
-    Incorporate the brand color ${brandColor} into the lighting, background accents, or subtle graphic elements. 
-    The style should be appetizing, modern, and high-quality food photography suitable for Instagram.
-    Do not add messy text, keep it clean. Subtle aesthetic.`
+    businessName: string,
+    businessType: string,
+    cuisine?: string,
+    tone: string,
+    primaryColor: string,
+    secondaryColor: string,
+    caption: string,
+    style: 'minimal' | 'bold' | 'lifestyle'
+}): Promise<string> {
+    
+    const builtPrompt = buildPosterPrompt({
+        imageUrl: params.imageUrl,
+        businessName: params.businessName,
+        businessType: params.businessType,
+        cuisine: params.cuisine,
+        tone: params.tone,
+        primaryColor: params.primaryColor,
+        caption: params.caption,
+        style: params.style
+    });
 
-        const result = await fal.subscribe('fal-ai/flux/schnell', {
-            input: {
-                prompt: prompt,
-                // @ts-ignore - Fal AI types are outdated for this model
-                image_url: imageUrl, // Some flux models accept image prompts
-                image_size: 'square_hd',
-                num_inference_steps: 4, // Schnell is fast
-                guidance_scale: 3.5,
-            },
-            logs: true,
-            onQueueUpdate: (update) => {
-                if (update.status === 'IN_PROGRESS') {
-                    update.logs.map((log) => log.message).forEach(console.log);
-                }
-            },
-        });
+    const result: any = await fal.subscribe("fal-ai/flux/schnell", {
+        input: {
+            prompt: builtPrompt,
+            image_url: params.imageUrl,
+            image_size: "square_hd",
+            num_inference_steps: 28,
+            guidance_scale: 3.5,
+            num_images: 1,
+            enable_safety_checker: true
+        } as any,
+        pollInterval: 2000, 
+    });
 
-        // The result typically contains a deeply nested array of images
-        // Note: The exact return type shape depends on the specific fal model chosen
-        const generatedUrl = (result.data as any).images?.[0]?.url;
-
-        if (!generatedUrl) {
-            throw new Error('Fal.ai returned no image URL')
-        }
-
-        return generatedUrl;
-
-    } catch (error: any) {
-        console.error('Fal AI Error:', error);
-        throw new Error(`Failed to generate poster: ${error.message}`);
+    const data = result.data || result; // Handle both SDK versions
+    if (!data.images || data.images.length === 0) {
+        throw new Error("Fal.ai generation failed to return an image.");
     }
+
+    return data.images[0].url;
+}
+
+export async function generateThreeStyles(params: {
+    imageUrl: string,
+    businessName: string,
+    businessType: string,
+    cuisine?: string,
+    tone: string,
+    primaryColor: string,
+    secondaryColor: string,
+    caption: string
+}) {
+    // Call in parallel for speed
+    const [minimal, bold, lifestyle] = await Promise.all([
+        generatePoster({ ...params, style: 'minimal' }),
+        generatePoster({ ...params, style: 'bold' }),
+        generatePoster({ ...params, style: 'lifestyle' })
+    ]);
+
+    return { minimal, bold, lifestyle };
+}
+
+export async function removeBackground(imageUrl: string): Promise<string> {
+    const result: any = await fal.subscribe("fal-ai/bria/background/remove", {
+        input: { image_url: imageUrl } as any
+    });
+
+    const data = result.data || result;
+    if (!data.image?.url) {
+        throw new Error("Failed to remove background.");
+    }
+
+    return data.image.url;
+}
+
+export async function enhancePhoto(imageUrl: string): Promise<string> {
+    const result: any = await fal.subscribe("fal-ai/clarity-upscaler", {
+        input: { 
+            image_url: imageUrl,
+            scale: 2,
+            creativity: 0.3
+        } as any
+    });
+
+    const data = result.data || result;
+    if (!data.image?.url) {
+        throw new Error("Failed to enhance photo.");
+    }
+
+    return data.image.url;
 }

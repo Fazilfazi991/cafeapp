@@ -24,7 +24,9 @@ export default function CreatePostPage() {
 
     // AI Generation State
     const [isGenerating, setIsGenerating] = useState(false)
-    const [posterUrl, setPosterUrl] = useState<string | null>(null)
+    const [generationProgress, setGenerationProgress] = useState<string>('')
+    const [posters, setPosters] = useState<{ minimal: string, bold: string, lifestyle: string } | null>(null)
+    const [selectedStyle, setSelectedStyle] = useState<'minimal' | 'bold' | 'lifestyle'>('minimal')
     const [captions, setCaptions] = useState<{ option1: string, option2: string, option3: string } | null>(null)
     const [gmbCaption, setGmbCaption] = useState<string | null>(null)
 
@@ -75,18 +77,22 @@ export default function CreatePostPage() {
                 try { videoRes = JSON.parse(text) } catch (e) { throw new Error(text) }
                 if (!res.ok) throw new Error(videoRes.error || text)
                 videoBrief = videoRes.brief
-            } else {
-                const res = await fetch('/api/generate/poster', {
+                setGenerationProgress('Enhancing photo and generating styles...')
+                const posterRes = await fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: uploadedUrl })
+                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '' })
                 })
-                const text = await res.text()
+                const posterText = await posterRes.text()
                 let data;
-                try { data = JSON.parse(text) } catch (e) { throw new Error(text) }
-                if (!res.ok) throw new Error(data.error || text)
-                setPosterUrl(data.posterUrl)
+                try { data = JSON.parse(posterText) } catch (e) { throw new Error(posterText) }
+                if (!posterRes.ok) throw new Error(data.error || posterText)
+                
+                setPosters(data.posters)
+                setSelectedStyle('minimal')
             }
+
+            setGenerationProgress('Writing captions...')
 
             const capRes = await fetch('/api/generate/caption', {
                 method: 'POST',
@@ -138,6 +144,7 @@ export default function CreatePostPage() {
             setError(String(errMsg))
         } finally {
             setIsGenerating(false)
+            setGenerationProgress('')
         }
     }
 
@@ -155,7 +162,7 @@ export default function CreatePostPage() {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
-                            imageUrl: posterUrl || uploadedUrl,
+                            imageUrl: posters ? posters[selectedStyle] : uploadedUrl,
                             caption: gmbCaption || selectedCaption,
                             scheduledTime: postDate.toISOString()
                         })
@@ -171,7 +178,7 @@ export default function CreatePostPage() {
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         platforms: metaPlatforms,
-                        imageUrl: posterUrl || uploadedUrl,
+                        imageUrl: posters ? posters[selectedStyle] : uploadedUrl,
                         caption: selectedCaption,
                         scheduledTime: postDate.toISOString()
                     })
@@ -183,7 +190,7 @@ export default function CreatePostPage() {
             alert('Posts scheduled successfully!')
             setStep(1)
             setUploadedUrl(null)
-            setPosterUrl(null)
+            setPosters(null)
             setCaptions(null)
             setGmbCaption(null)
             setScheduledDate('')
@@ -234,7 +241,7 @@ export default function CreatePostPage() {
                                     </div>
                                     <div>
                                         <p className="font-medium text-sm">Media uploaded successfully</p>
-                                        <button onClick={() => { setUploadedUrl(null); setStep(1); setPosterUrl(null); setCaptions(null); setGmbCaption(null); }} className="text-xs text-blue-600 hover:underline">Change file</button>
+                                        <button onClick={() => { setUploadedUrl(null); setStep(1); setPosters(null); setCaptions(null); setGmbCaption(null); }} className="text-xs text-blue-600 hover:underline">Change file</button>
                                     </div>
                                 </div>
                             </div>
@@ -292,12 +299,15 @@ export default function CreatePostPage() {
                         <button
                             onClick={generateAIContent}
                             disabled={isGenerating || step === 3}
-                            className="w-full py-3 bg-[#1A1A1A] text-white rounded-md font-bold flex items-center justify-center gap-2 hover:bg-gray-800 disabled:opacity-50 transition-colors"
+                            className="w-full py-3 bg-[#1A1A1A] text-white rounded-md font-bold flex flex-col items-center justify-center hover:bg-gray-800 disabled:opacity-50 transition-colors h-14"
                         >
                             {isGenerating ? (
-                                <><Loader2 className="animate-spin" size={18} /> Generating Magic...</>
+                                <>
+                                    <div className="flex items-center gap-2 mb-0.5"><Loader2 className="animate-spin" size={16} /> <span className="text-sm">Generating Magic...</span></div>
+                                    <span className="text-[10px] text-gray-400 font-normal tracking-wider uppercase">{generationProgress}</span>
+                                </>
                             ) : (
-                                <><Wand2 size={18} /> Generate Poster & Captions</>
+                                <div className="flex items-center gap-2"><Wand2 size={18} /> <span>Generate Poster & Captions</span></div>
                             )}
                         </button>
                     </div>
@@ -321,6 +331,26 @@ export default function CreatePostPage() {
                                     </div>
                                 ))}
                             </div>
+                            
+                            {posters && (
+                                <div className="mt-8">
+                                    <h3 className="text-sm font-medium text-gray-700 mb-3 block">Select Your Poster Style:</h3>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        {(['minimal', 'bold', 'lifestyle'] as const).map(style => (
+                                            <div 
+                                                key={style}
+                                                onClick={() => setSelectedStyle(style)}
+                                                className={`border rounded-lg p-2 cursor-pointer transition-all ${selectedStyle === style ? 'border-[#FF6B35] ring-2 ring-[#FF6B35]/20 bg-orange-50' : 'hover:bg-gray-50'}`}
+                                            >
+                                                <div className="aspect-square bg-gray-100 rounded mb-2 overflow-hidden">
+                                                    <img src={posters[style]} className="w-full h-full object-cover" />
+                                                </div>
+                                                <p className="text-xs font-semibold text-center capitalize">{style}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
 
                             {selectedPlatforms.includes('gmb') && gmbCaption && (
                                 <div className="mt-6 pt-6 border-t">
@@ -358,8 +388,11 @@ export default function CreatePostPage() {
                                     <Loader2 className="animate-spin text-[#FF6B35]" size={32} />
                                     <span className="text-sm font-medium animate-pulse">Rendering fal.ai poster...</span>
                                 </div>
-                            ) : posterUrl ? (
-                                <img src={posterUrl} className="w-full h-full object-cover" />
+                            ) : posters ? (
+                                <div className="w-full h-full relative">
+                                    <img src={posters[selectedStyle]} className="w-full h-full object-cover transition-opacity duration-300" />
+                                    <div className="absolute top-2 left-2 bg-black/60 backdrop-blur-md text-white px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest">{selectedStyle} Style</div>
+                                </div>
                             ) : uploadedUrl ? (
                                 <div className="w-full h-full relative group">
                                     <img src={uploadedUrl} className="w-full h-full object-cover blur-sm opacity-50" />
