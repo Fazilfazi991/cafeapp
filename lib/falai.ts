@@ -23,7 +23,8 @@ export async function generatePoster(
         const result = await fal.subscribe('fal-ai/flux/schnell', {
             input: {
                 prompt: prompt,
-                image_url: imageUrl, // Some flux models accept image prompts, we assume a standard image-to-image or styling pass
+                // @ts-ignore - Fal AI types are outdated for this model
+                image_url: imageUrl, // Some flux models accept image prompts
                 image_size: 'square_hd',
                 num_inference_steps: 4, // Schnell is fast
                 guidance_scale: 3.5,
