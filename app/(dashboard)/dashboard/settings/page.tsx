@@ -26,11 +26,22 @@ export default async function SettingsPage() {
 
         const name = formData.get('name') as string
         const website = formData.get('website') as string
+        const phone = formData.get('phone') as string
+        const address = formData.get('address') as string
+        const business_type = formData.get('business_type') as string
+        const font_style = formData.get('font_style') as string
 
+        // Update restaurants table
         await supabase
             .from('restaurants')
-            .update({ name, website })
+            .update({ name, website, phone, address, business_type })
             .eq('user_id', user.id)
+            
+        // Update brand_settings table
+        await supabase
+            .from('brand_settings')
+            .update({ font_style })
+            .eq('restaurant_id', restaurant.id)
 
         // Normally would trigger a revalidatePath here, but simple redirect for now
         redirect('/dashboard/settings')
@@ -64,6 +75,63 @@ export default async function SettingsPage() {
                                 defaultValue={restaurant.website || ''}
                                 className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
                             />
+                        </div>
+                        
+                        <div>
+                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Phone Number</label>
+                            <input
+                                name="phone"
+                                defaultValue={restaurant.phone || ''}
+                                placeholder="(555) 123-4567"
+                                className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
+                            />
+                            <p className="text-[11px] text-gray-500 mt-1">Used on your AI generated posters.</p>
+                        </div>
+
+                        <div>
+                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Address</label>
+                            <textarea
+                                name="address"
+                                defaultValue={restaurant.address || ''}
+                                placeholder="123 Main St, City, ST 12345"
+                                rows={2}
+                                className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35] resize-none"
+                            />
+                            <p className="text-[11px] text-gray-500 mt-1">Used to provide local context to AI captions.</p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Type</label>
+                                <select 
+                                    name="business_type" 
+                                    defaultValue={restaurant.business_type || 'restaurant'}
+                                    className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
+                                >
+                                    <option value="restaurant">Restaurant / Cafe</option>
+                                    <option value="salon">Salon / Spa</option>
+                                    <option value="gym">Gym / Fitness</option>
+                                    <option value="retail">Retail Store</option>
+                                    <option value="real_estate">Real Estate</option>
+                                    <option value="medical">Medical / Clinic</option>
+                                    <option value="education">Education</option>
+                                    <option value="other">Other Business</option>
+                                </select>
+                            </div>
+                            
+                            <div>
+                                <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Font Style</label>
+                                <select 
+                                    name="font_style" 
+                                    defaultValue={restaurant.brand_settings?.[0]?.font_style || 'modern'}
+                                    className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
+                                >
+                                    <option value="modern">Modern (Sans-serif)</option>
+                                    <option value="classic">Classic (Serif)</option>
+                                    <option value="playful">Playful (Rounded)</option>
+                                    <option value="elegant">Elegant (Script)</option>
+                                </select>
+                            </div>
                         </div>
                         <button className="bg-[#1A1A1A] text-white rounded-md px-4 py-2 mt-2 font-medium hover:bg-gray-800 transition-colors w-fit">
                             Save Changes
