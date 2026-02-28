@@ -58,7 +58,7 @@ export async function GET(req: Request) {
                     
                     const locationName = locations[0].name
 
-                    await createGMBPost(locationName, post.image_url, post.caption, accessToken)
+                    await createGMBPost(locationName, post.poster_url, post.selected_caption, accessToken)
 
                     await supabase
                         .from('posts')

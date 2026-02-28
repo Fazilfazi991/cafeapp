@@ -69,8 +69,8 @@ export async function POST(req: Request) {
             await supabase.from('posts').insert({
                 restaurant_id: restaurant.id,
                 platform: 'gmb',
-                image_url: imageUrl,
-                caption: caption,
+                poster_url: imageUrl,
+                selected_caption: caption,
                 status: 'published',
                 published_at: new Date().toISOString()
             })
