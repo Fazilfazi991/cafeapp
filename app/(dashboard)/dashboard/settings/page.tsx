@@ -103,7 +103,6 @@ export default async function SettingsPage() {
 
                         {(() => {
                             const gmbAccount = restaurant.connected_accounts?.find((a: any) => a.platform === 'gmb');
-                            const canAccessGMB = restaurant.plan === 'pro' || restaurant.plan === 'business';
 
                             if (gmbAccount && gmbAccount.is_active) {
                                 return (
@@ -131,22 +130,13 @@ export default async function SettingsPage() {
                                 <div className="border rounded-lg p-5">
                                     <p className="text-sm text-gray-600 mb-4">Boost your local search ranking by posting directly to Google.</p>
 
-                                    {!canAccessGMB && (
-                                        <p className="text-xs font-semibold text-[#FF6B35] mb-3 flex items-center gap-1">⭐ Pro & Business plan feature</p>
-                                    )}
-
                                     <form action="/api/gmb/connect">
                                         <button
-                                            disabled={!canAccessGMB}
-                                            className="bg-[#1A1A1A] text-white disabled:bg-gray-100 disabled:text-gray-400 disabled:border-transparent disabled:cursor-not-allowed border-transparent border rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition-colors w-full sm:w-auto"
+                                            className="bg-[#1A1A1A] text-white border-transparent border rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition-colors w-full sm:w-auto"
                                         >
-                                            {canAccessGMB ? "Connect Google My Business" : "Upgrade to Pro to unlock GMB posting"}
+                                            Connect Google My Business
                                         </button>
                                     </form>
-
-                                    {canAccessGMB && (
-                                        <p className="text-xs font-semibold text-gray-500 mt-3 flex items-center gap-1">⭐ Pro & Business plan feature</p>
-                                    )}
                                 </div>
                             );
                         })()}

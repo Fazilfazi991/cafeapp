@@ -37,11 +37,6 @@ export default function CreatePostPage() {
     const [scheduledDate, setScheduledDate] = useState<string>('')
 
     const handleTogglePlatform = (p: Platform) => {
-        if (p === 'gmb') {
-            const canAccess = restaurantInfo?.plan === 'pro' || restaurantInfo?.plan === 'business';
-            if (!canAccess) return; // Disallow selection
-        }
-
         setSelectedPlatforms(prev => {
             if (prev.includes(p)) {
                 if (prev.length === 1) return prev; // Keep at least one
@@ -254,39 +249,18 @@ export default function CreatePostPage() {
                             <div className="flex flex-wrap gap-3">
                                 {(['instagram', 'facebook', 'gmb'] as Platform[]).map(p => {
                                     const isSelected = selectedPlatforms.includes(p);
-                                    let isDisabled = false;
-                                    let tooltip = '';
-
-                                    if (p === 'gmb') {
-                                        const canAccessGMB = restaurantInfo?.plan === 'pro' || restaurantInfo?.plan === 'business';
-                                        if (!canAccessGMB) {
-                                            isDisabled = true;
-                                            tooltip = "Upgrade to Pro to post to GMB";
-                                        }
-                                    }
 
                                     return (
                                         <div key={p} className="relative group flex-1 min-w-[120px]">
                                             <button
                                                 onClick={() => handleTogglePlatform(p)}
-                                                disabled={isDisabled}
                                                 className={`w-full px-4 py-3 text-sm font-semibold rounded-lg border capitalize transition-all ${isSelected
                                                         ? 'bg-[#FF6B35] text-white border-[#FF6B35] shadow-md'
                                                         : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
-                                                    } ${isDisabled
-                                                        ? 'opacity-50 cursor-not-allowed bg-gray-100'
-                                                        : ''
                                                     }`}
                                             >
                                                 {p === 'gmb' ? 'Google My Business' : p}
                                             </button>
-
-                                            {tooltip && (
-                                                <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-gray-900 text-white text-xs px-3 py-1.5 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none z-10 flex items-center gap-1 shadow-lg">
-                                                    <Info size={14} className="text-orange-400" />
-                                                    {tooltip}
-                                                </div>
-                                            )}
                                         </div>
                                     );
                                 })}

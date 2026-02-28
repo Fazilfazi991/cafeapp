@@ -29,10 +29,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
         }
 
-        if (restaurant.plan !== 'pro' && restaurant.plan !== 'business') {
-            return NextResponse.json({ error: 'Upgrade to Pro to unlock GMB posting' }, { status: 403 })
-        }
-
         const { data: account } = await supabase
             .from('connected_accounts')
             .select('gmb_location_name')
