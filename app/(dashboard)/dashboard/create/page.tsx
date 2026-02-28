@@ -31,6 +31,7 @@ export default function CreatePostPage() {
     // Selection State
     const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['instagram'])
     const [selectedCaption, setSelectedCaption] = useState<string>('')
+    const [contentType, setContentType] = useState<string>('Promotional Post')
 
     // Scheduling State
     const [isScheduling, setIsScheduling] = useState(false)
@@ -93,7 +94,8 @@ export default function CreatePostPage() {
                 body: JSON.stringify({
                     platform: primaryPlatform,
                     postType: fileType,
-                    extraContext: videoBrief
+                    extraContext: videoBrief,
+                    contentType: contentType
                 })
             })
             const capText = await capRes.text()
@@ -111,7 +113,8 @@ export default function CreatePostPage() {
                     body: JSON.stringify({
                         platform: 'gmb',
                         postType: fileType,
-                        extraContext: videoBrief
+                        extraContext: videoBrief,
+                        contentType: contentType
                     })
                 })
                 const gmbText = await gmbRes.text()
@@ -267,6 +270,24 @@ export default function CreatePostPage() {
                             </div>
                         </div>
 
+                        <div className="mb-6">
+                            <label className="text-sm font-medium mb-3 block">Post Content Type:</label>
+                            <select
+                                value={contentType}
+                                onChange={(e) => setContentType(e.target.value)}
+                                className="w-full rounded-md px-4 py-3 bg-white border border-gray-200 focus:outline-none focus:border-[#FF6B35] text-sm text-gray-700 shadow-sm"
+                            >
+                                <option value="Promotional Post">Promotional Post</option>
+                                <option value="Educational/Tips Post">Educational/Tips Post</option>
+                                <option value="Behind the Scenes">Behind the Scenes</option>
+                                <option value="Product/Service Spotlight">Product/Service Spotlight</option>
+                                <option value="Customer Testimonial">Customer Testimonial</option>
+                                <option value="Seasonal/Holiday Post">Seasonal/Holiday Post</option>
+                                <option value="Announcement">Announcement</option>
+                                <option value="Engagement Post">Engagement Post</option>
+                            </select>
+                        </div>
+
                         <button
                             onClick={generateAIContent}
                             disabled={isGenerating || step === 3}
@@ -327,7 +348,7 @@ export default function CreatePostPage() {
                     <div className="flex-1 bg-gray-50 rounded-xl overflow-hidden border flex flex-col relative max-w-[400px] mx-auto w-full shadow-inner">
                         <div className="h-14 bg-white border-b flex items-center px-4 gap-3 shrink-0">
                             <div className="w-8 h-8 rounded-full bg-gray-200"></div>
-                            <div className="font-bold text-sm">Your Restaurant</div>
+                            <div className="font-bold text-sm">Your Business</div>
                         </div>
 
                         <div className="aspect-square bg-gray-100 flex items-center justify-center shrink-0 w-full overflow-hidden border-b relative">

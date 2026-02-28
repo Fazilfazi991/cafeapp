@@ -7,13 +7,14 @@ const openai = new OpenAI({
 });
 
 export async function generateCaptions(
-    restaurantName: string,
-    cuisineType: string,
+    businessName: string,
+    businessType: string,
     city: string,
     toneOfVoice: string,
     platform: 'instagram' | 'facebook' | 'gmb',
     postType: string,
-    extraContext?: string
+    extraContext?: string,
+    contentType?: string
 ) {
     let platformInstructions = '';
     if (platform === 'instagram') {
@@ -24,11 +25,12 @@ export async function generateCaptions(
         platformInstructions = `Be short and local-SEO optimized. MUST mention the city (${city}). Do not use hashtags. Keep it under 60 words. Sound like a helpful local search result update.`;
     }
 
-    const systemPrompt = `You are an expert social media manager for ${restaurantName}, a ${cuisineType} restaurant in ${city}.
+    const systemPrompt = `You are an expert social media manager for ${businessName}, a ${businessType} in ${city}.
 Your brand voice is strictly: ${toneOfVoice}.
 
 ${extraContext ? `The content you are writing for is a video with this description/brief: "${extraContext}"` : ''}
 
+The core focus or objective of this post is: ${contentType || 'Promotional Post'}.
 Generate 3 different caption options for a ${postType} post on ${platform}.
 ${platformInstructions}
 

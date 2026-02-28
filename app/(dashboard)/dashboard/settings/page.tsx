@@ -47,10 +47,10 @@ export default async function SettingsPage() {
 
                 {/* Profile Settings */}
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
-                    <h2 className="text-lg font-bold mb-4">Restaurant Profile</h2>
+                    <h2 className="text-lg font-bold mb-4">Business Profile</h2>
                     <form action={updateProfile} className="flex flex-col gap-4 max-w-md">
                         <div>
-                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Restaurant Name</label>
+                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Name</label>
                             <input
                                 name="name"
                                 defaultValue={restaurant.name}

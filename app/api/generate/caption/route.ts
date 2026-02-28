@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { platform, postType, extraContext } = body
+        const { platform, postType, extraContext, contentType } = body
 
         if (!platform || !postType) {
             return NextResponse.json({ error: 'Missing platform or postType' }, { status: 400 })
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         // Get restaurant details for context
         const { data: restaurants } = await supabase
             .from('restaurants')
-            .select('name, cuisine_type, city, tone_of_voice')
+            .select('name, business_type, cuisine_type, city, tone_of_voice')
             .eq('user_id', user.id)
             .limit(1)
 
@@ -32,12 +32,13 @@ export async function POST(req: Request) {
 
         const captions = await generateCaptions(
             restaurant.name,
-            restaurant.cuisine_type || 'restaurant',
+            restaurant.business_type || restaurant.cuisine_type || 'Business',
             restaurant.city || '',
             restaurant.tone_of_voice || 'casual',
             platform,
             postType,
-            extraContext
+            extraContext,
+            contentType
         )
 
         return NextResponse.json({ captions })

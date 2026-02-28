@@ -2,6 +2,7 @@ export interface Restaurant {
   id: string;
   user_id: string;
   name: string;
+  business_type?: string;
   cuisine_type?: string;
   city?: string;
   website?: string;

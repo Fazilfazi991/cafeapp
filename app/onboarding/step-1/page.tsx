@@ -16,6 +16,7 @@ export default async function Step1() {
         if (!user) return
 
         const name = formData.get('name') as string
+        const business_type = formData.get('business_type') as string
         const cuisine_type = formData.get('cuisine_type') as string
         const city = formData.get('city') as string
         const website = formData.get('website') as string
@@ -25,6 +26,7 @@ export default async function Step1() {
             .insert({
                 user_id: user.id,
                 name,
+                business_type,
                 cuisine_type,
                 city,
                 website: website || null,
@@ -42,13 +44,13 @@ export default async function Step1() {
         <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 text-foreground">
             <div className="mb-8">
                 <p className="text-sm font-semibold text-[#FF6B35] mb-2">Step 1 of 3</p>
-                <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">Tell us about your restaurant</h1>
+                <h1 className="text-3xl font-bold text-[#1A1A1A] mb-2">Tell us about your business</h1>
                 <p className="text-gray-500">We'll use this to optimize your social media content.</p>
             </div>
 
             <form action={saveRestaurantDetails} className="flex flex-col gap-5">
                 <div>
-                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Restaurant Name *</label>
+                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Name *</label>
                     <input
                         name="name"
                         placeholder="e.g. The Rustic Spoon"
@@ -58,10 +60,31 @@ export default async function Step1() {
                 </div>
 
                 <div>
-                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Cuisine Type *</label>
+                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Type *</label>
+                    <select
+                        name="business_type"
+                        required
+                        className="w-full rounded-md px-4 py-3 bg-white border focus:outline-none focus:border-[#FF6B35] text-gray-700"
+                    >
+                        <option value="">Select a type...</option>
+                        <option value="Restaurant">Restaurant</option>
+                        <option value="Cafe">Cafe</option>
+                        <option value="Retail">Retail</option>
+                        <option value="Salon & Spa">Salon & Spa</option>
+                        <option value="Gym & Fitness">Gym & Fitness</option>
+                        <option value="Real Estate">Real Estate</option>
+                        <option value="Medical & Clinic">Medical & Clinic</option>
+                        <option value="Education">Education</option>
+                        <option value="Hotel">Hotel</option>
+                        <option value="Automotive">Automotive</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Cuisine / Sub-Type (Optional)</label>
                     <select
                         name="cuisine_type"
-                        required
                         className="w-full rounded-md px-4 py-3 bg-white border focus:outline-none focus:border-[#FF6B35] text-gray-700"
                     >
                         <option value="">Select a cuisine...</option>
