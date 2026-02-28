@@ -162,21 +162,22 @@ export default function CreatePostPage() {
                     })
                     const data = await response.json()
                     if (!response.ok) throw new Error(`[GMB] ${data.error || 'Failed to schedule post'}`)
-                } else {
-                    const response = await fetch('/api/buffer/schedule', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            platform: platform,
-                            mediaUrl: uploadedUrl,
-                            posterUrl: posterUrl,
-                            caption: selectedCaption,
-                            scheduledAt: postDate.toISOString()
-                        })
-                    })
-                    const data = await response.json()
-                    if (!response.ok) throw new Error(`[${platform}] ${data.error || 'Failed to schedule post'}`)
                 }
+            }
+            const metaPlatforms = selectedPlatforms.filter(p => p !== 'gmb');
+            if (metaPlatforms.length > 0) {
+                const response = await fetch('/api/meta/schedule', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        platforms: metaPlatforms,
+                        imageUrl: posterUrl || uploadedUrl,
+                        caption: selectedCaption,
+                        scheduledTime: postDate.toISOString()
+                    })
+                })
+                const data = await response.json()
+                if (!response.ok) throw new Error(`[Meta] ${data.error || 'Failed to schedule post'}`)
             }
 
             alert('Posts scheduled successfully!')

@@ -31,8 +31,9 @@ export interface ConnectedAccount {
   id: string;
   restaurant_id: string;
   platform: 'instagram' | 'facebook' | 'gmb';
-  buffer_access_token?: string;
-  buffer_channel_id?: string;
+  meta_access_token?: string;
+  meta_page_id?: string;
+  meta_ig_id?: string;
   google_access_token?: string;
   google_refresh_token?: string;
   gmb_account_id?: string;
@@ -62,7 +63,6 @@ export interface Post {
   status: 'draft' | 'scheduled' | 'published' | 'failed';
   scheduled_at?: string;
   published_at?: string;
-  buffer_post_id?: string;
   gmb_post_id?: string;
   post_type: 'image' | 'video';
   created_at: string;

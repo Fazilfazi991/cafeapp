@@ -1,6 +1,5 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
-import BufferTokenForm from '@/components/settings/BufferTokenForm'
 import GmbLocationManager from '@/components/settings/GmbLocationManager'
 
 export default async function SettingsPage() {
@@ -136,11 +135,42 @@ export default async function SettingsPage() {
                         })()}
                     </div>
 
-                    <div className="mb-4 pt-6 mt-6 border-t border-gray-100">
-                        <h3 className="font-semibold text-[#1A1A1A] mb-1">Buffer Access Token</h3>
-                        <p className="text-sm text-gray-500 mb-3">Paste your personal Buffer access token to enable automatic posting.</p>
+                    <div className="mb-8 pt-6 mt-6 border-t border-gray-100">
+                        <h3 className="font-semibold text-[#1A1A1A] mb-3 flex items-center gap-2">📱 Meta (Facebook & Instagram)</h3>
+                        
+                        {(() => {
+                            const metaAccount = restaurant.connected_accounts?.find((a: any) => a.platform === 'facebook');
 
-                        <BufferTokenForm initialToken={restaurant.connected_accounts?.find((a: any) => a.platform === 'buffer')?.buffer_access_token || ''} />
+                            if (metaAccount && metaAccount.is_active) {
+                                return (
+                                    <div className="border rounded-lg p-5 bg-gray-50 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="font-medium text-[#1A1A1A] text-sm">Meta Pages</span>
+                                                <span className="text-xs font-semibold px-2 py-0.5 bg-green-100 text-green-700 rounded-full flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Connected
+                                                </span>
+                                            </div>
+                                            <p className="text-sm text-gray-500">Your Facebook Page and connected Instagram Professional account are linked.</p>
+                                        </div>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="border rounded-lg p-5">
+                                    <p className="text-sm text-gray-600 mb-4">Connect your Facebook Page to auto-publish to Facebook and its linked Instagram Business account.</p>
+
+                                    <form action="/api/meta/connect">
+                                        <button
+                                            className="bg-[#1877F2] text-white border-transparent border rounded-md px-4 py-2 text-sm font-medium hover:bg-[#0C63D4] transition-colors w-full sm:w-auto"
+                                        >
+                                            Connect Facebook & Instagram
+                                        </button>
+                                    </form>
+                                </div>
+                            );
+                        })()}
                     </div>
 
                 </div>

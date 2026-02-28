@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { createGMBPost, getValidGmbToken } from '@/lib/gmb'
+import { publishToFacebook, publishToInstagram } from '@/lib/meta'
 
 export const dynamic = 'force-dynamic'
 
@@ -62,9 +63,32 @@ export async function GET(req: Request) {
                 }
 
                 if (post.platforms && (post.platforms.includes('instagram') || post.platforms.includes('facebook'))) {
-                    // For Instagram/Facebook, normally we would call postToInstagram or postToFacebook
-                    // Assuming that's handled elsewhere or to be mocked for now.
-                    console.log(`[CRON] Processing ${post.platform} for post ${post.id}`)
+                    // Fetch Meta Account Details
+                    const { data: metaAccount } = await supabase
+                        .from('connected_accounts')
+                        .select('meta_access_token, meta_page_id, meta_ig_id')
+                        .eq('restaurant_id', post.restaurant_id)
+                        .eq('platform', 'facebook')
+                        .single()
+
+                    if (!metaAccount || !metaAccount.meta_access_token) {
+                        throw new Error('Meta account disconnected before publish')
+                    }
+
+                    // Publish to Facebook if requested
+                    if (post.platforms.includes('facebook')) {
+                        if (!metaAccount.meta_page_id) throw new Error('No Facebook Page ID attached')
+                        await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, post.selected_caption, post.poster_url)
+                        console.log(`[CRON] FB Published for post ${post.id}`)
+                    }
+
+                    // Publish to Instagram if requested
+                    if (post.platforms.includes('instagram')) {
+                        if (!metaAccount.meta_ig_id) throw new Error('No Instagram Business Account attached')
+                        await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, post.selected_caption, post.poster_url)
+                        console.log(`[CRON] IG Published for post ${post.id}`)
+                    }
+
                     await supabase
                         .from('posts')
                         .update({
@@ -72,6 +96,7 @@ export async function GET(req: Request) {
                             published_at: new Date().toISOString()
                         })
                         .eq('id', post.id)
+                        
                     processed++
                 }
             } catch (err: any) {
