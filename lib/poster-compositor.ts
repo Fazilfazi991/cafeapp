@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 
 export async function compositePoster(params: {
     posterUrl: string,
+    subjectUrl?: string,
     logoUrl?: string,
     businessName: string,
     phone?: string,
@@ -11,7 +12,7 @@ export async function compositePoster(params: {
     primaryColor: string,
     secondaryColor?: string
 }): Promise<string> {
-    const { posterUrl, logoUrl, businessName, phone, website, primaryColor } = params;
+    const { posterUrl, subjectUrl, logoUrl, businessName, phone, website, primaryColor } = params;
 
     // 1. Download the base poster image
     const posterResponse = await fetch(posterUrl);
@@ -26,20 +27,46 @@ export async function compositePoster(params: {
 
     const compositeOperations: sharp.OverlayOptions[] = [];
 
+    // 1.5 Subject Placement (Center Foreground)
+    if (subjectUrl) {
+        try {
+            const subjectResponse = await fetch(subjectUrl);
+            if (subjectResponse.ok) {
+                const subjectBuffer = await subjectResponse.arrayBuffer();
+
+                // Resize the extracted food so it fits nicely in the center of the poster
+                const subjectResized = await sharp(Buffer.from(subjectBuffer))
+                    .resize(Math.floor(width * 0.75), Math.floor(height * 0.65), {
+                        fit: 'inside',
+                        background: { r: 0, g: 0, b: 0, alpha: 0 }
+                    })
+                    .toBuffer();
+
+                compositeOperations.push({
+                    input: subjectResized,
+                    gravity: 'center',
+                    blend: 'over'
+                });
+            }
+        } catch (e) {
+            console.error("Failed to add subject to composite", e);
+        }
+    }
+
     // 2. Logo Placement (Top Right)
     if (logoUrl) {
         try {
             const logoResponse = await fetch(logoUrl);
             if (logoResponse.ok) {
                 const logoBuffer = await logoResponse.arrayBuffer();
-                
+
                 // Create a white circular background for the logo
                 const circleSvg = `
                     <svg width="100" height="100">
                         <circle cx="50" cy="50" r="50" fill="white" />
                     </svg>
                 `;
-                
+
                 const logoResized = await sharp(Buffer.from(logoBuffer))
                     .resize(80, 80, { fit: 'contain', background: { r: 255, g: 255, b: 255, alpha: 0 } })
                     .toBuffer();
@@ -71,7 +98,7 @@ export async function compositePoster(params: {
     const opacityColor = `rgba(${parseInt(hexColor.slice(1, 3), 16) || 0}, ${parseInt(hexColor.slice(3, 5), 16) || 0}, ${parseInt(hexColor.slice(5, 7), 16) || 0}, 0.9)`;
 
     const contactText = [phone, website].filter(Boolean).join('  |  ');
-    
+
     // We use SVG to draw the rectangle and text
     const stripSvg = `
         <svg width="${width}" height="${stripHeight}">

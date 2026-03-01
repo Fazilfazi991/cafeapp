@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase-server'
-import { enhancePhoto, generateThreeStyles } from '@/lib/falai'
+import { enhancePhoto, generateThreeStyles, removeBackground } from '@/lib/falai'
 import { compositePoster } from '@/lib/poster-compositor'
 import { NextResponse } from 'next/server'
 
@@ -37,8 +37,11 @@ export async function POST(req: Request) {
 
         const brand = restaurant.brand_settings?.[0] || { primary_color: '#FF6B35', logo_url: '' }
 
-        // STEP 1 - Enhance photo
-        const enhancedUrl = await enhancePhoto(imageUrl)
+        // STEP 1 - Enhance photo and Extract Background
+        const [enhancedUrl, subjectUrl] = await Promise.all([
+            enhancePhoto(imageUrl),
+            removeBackground(imageUrl) // fal-ai/bria/background/remove
+        ]);
 
         // STEP 2 - Generate 3 style variations
         const { minimal, bold, lifestyle } = await generateThreeStyles({
@@ -55,6 +58,7 @@ export async function POST(req: Request) {
         // STEP 3 - Add logo + contact strip to each
         const minimalFinal = await compositePoster({
             posterUrl: minimal,
+            subjectUrl: subjectUrl,
             logoUrl: brand.logo_url,
             businessName: restaurant.name,
             phone: restaurant.phone,
@@ -63,9 +67,10 @@ export async function POST(req: Request) {
             primaryColor: brand.primary_color,
             secondaryColor: brand.secondary_color || '#000000'
         })
-        
+
         const boldFinal = await compositePoster({
             posterUrl: bold,
+            subjectUrl: subjectUrl,
             logoUrl: brand.logo_url,
             businessName: restaurant.name,
             phone: restaurant.phone,
@@ -74,9 +79,10 @@ export async function POST(req: Request) {
             primaryColor: brand.primary_color,
             secondaryColor: brand.secondary_color || '#000000'
         })
-        
+
         const lifestyleFinal = await compositePoster({
             posterUrl: lifestyle,
+            subjectUrl: subjectUrl,
             logoUrl: brand.logo_url,
             businessName: restaurant.name,
             phone: restaurant.phone,
@@ -87,7 +93,7 @@ export async function POST(req: Request) {
         })
 
         // STEP 4 - Return all three + source
-        return NextResponse.json({ 
+        return NextResponse.json({
             posters: {
                 minimal: minimalFinal,
                 bold: boldFinal,
