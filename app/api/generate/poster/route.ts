@@ -22,7 +22,7 @@ export async function POST(req: Request) {
         // Get brand settings
         const { data: restaurants, error: fetchError } = await supabase
             .from('restaurants')
-            .select('id, name, cuisine_type, business_type, tone_of_voice, phone, address, website, brand_settings(primary_color, secondary_color, logo_url)')
+            .select('id, name, cuisine_type, business_type, tone_of_voice, phone, email, address, website, brand_settings(primary_color, secondary_color, logo_url)')
             .eq('user_id', user.id)
             .limit(1)
 
@@ -63,6 +63,7 @@ export async function POST(req: Request) {
             businessName: restaurant.name,
             phone: restaurant.phone,
             website: restaurant.website,
+            email: restaurant.email,
             address: restaurant.address,
             primaryColor: brand.primary_color,
             secondaryColor: brand.secondary_color || '#000000'
@@ -75,6 +76,7 @@ export async function POST(req: Request) {
             businessName: restaurant.name,
             phone: restaurant.phone,
             website: restaurant.website,
+            email: restaurant.email,
             address: restaurant.address,
             primaryColor: brand.primary_color,
             secondaryColor: brand.secondary_color || '#000000'
@@ -87,6 +89,7 @@ export async function POST(req: Request) {
             businessName: restaurant.name,
             phone: restaurant.phone,
             website: restaurant.website,
+            email: restaurant.email,
             address: restaurant.address,
             primaryColor: brand.primary_color,
             secondaryColor: brand.secondary_color || '#000000'

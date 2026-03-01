@@ -3,6 +3,7 @@
 import { useFormState } from 'react-dom'
 import { updateProfile } from '@/app/actions/settings'
 import SubmitButton from '@/components/settings/SubmitButton'
+import LogoUploader from '@/components/settings/LogoUploader'
 import { useEffect, useState } from 'react'
 import { CheckCircle2, AlertCircle } from 'lucide-react'
 
@@ -24,7 +25,12 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
             <form action={formAction} className="flex flex-col gap-4 max-w-md">
                 <input type="hidden" name="user_id" value={restaurant.user_id} />
                 <input type="hidden" name="restaurant_id" value={restaurant.id} />
-                
+
+                <LogoUploader
+                    defaultValue={restaurant.brand_settings?.[0]?.logo_url}
+                    restaurantId={restaurant.id}
+                />
+
                 <div>
                     <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Name</label>
                     <input
@@ -42,13 +48,25 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
                         className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
                     />
                 </div>
-                
+
                 <div>
                     <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Phone Number</label>
                     <input
                         name="phone"
                         defaultValue={restaurant.phone || ''}
                         placeholder="(555) 123-4567"
+                        className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">Used on your AI generated posters.</p>
+                </div>
+
+                <div>
+                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Email Address</label>
+                    <input
+                        name="email"
+                        type="email"
+                        defaultValue={restaurant.email || ''}
+                        placeholder="hello@yourbusiness.com"
                         className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
                     />
                     <p className="text-[11px] text-gray-500 mt-1">Used on your AI generated posters.</p>
@@ -69,8 +87,8 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
                 <div className="grid grid-cols-2 gap-4">
                     <div>
                         <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Type</label>
-                        <select 
-                            name="business_type" 
+                        <select
+                            name="business_type"
                             defaultValue={restaurant.business_type || 'restaurant'}
                             className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
                         >
@@ -84,11 +102,11 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
                             <option value="other">Other Business</option>
                         </select>
                     </div>
-                    
+
                     <div>
                         <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Font Style</label>
-                        <select 
-                            name="font_style" 
+                        <select
+                            name="font_style"
                             defaultValue={restaurant.brand_settings?.[0]?.font_style || 'modern'}
                             className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
                         >
@@ -106,9 +124,9 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
                         <span className="grow break-all">{state.error}</span>
                     </div>
                 )}
-                
+
                 {showSuccess && (
-                     <div className="p-3 bg-green-50 text-green-700 text-sm font-medium rounded-md flex gap-2 items-center mt-2 animate-in fade-in">
+                    <div className="p-3 bg-green-50 text-green-700 text-sm font-medium rounded-md flex gap-2 items-center mt-2 animate-in fade-in">
                         <CheckCircle2 className="w-5 h-5" />
                         Settings saved successfully!
                     </div>

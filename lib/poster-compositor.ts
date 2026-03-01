@@ -7,12 +7,13 @@ export async function compositePoster(params: {
     logoUrl?: string,
     businessName: string,
     phone?: string,
+    email?: string,
     website?: string,
     address?: string,
     primaryColor: string,
     secondaryColor?: string
 }): Promise<string> {
-    const { posterUrl, subjectUrl, logoUrl, businessName, phone, website, primaryColor } = params;
+    const { posterUrl, subjectUrl, logoUrl, businessName, phone, email, website, primaryColor } = params;
 
     // 1. Download the base poster image
     const posterResponse = await fetch(posterUrl);
@@ -97,7 +98,7 @@ export async function compositePoster(params: {
     // opacity 90% is hex e6 appended to color, but CSS rgba works better in SVG
     const opacityColor = `rgba(${parseInt(hexColor.slice(1, 3), 16) || 0}, ${parseInt(hexColor.slice(3, 5), 16) || 0}, ${parseInt(hexColor.slice(5, 7), 16) || 0}, 0.9)`;
 
-    const contactText = [phone, website].filter(Boolean).join('  |  ');
+    const contactText = [phone, email, website].filter(Boolean).join('  |  ');
 
     // We use SVG to draw the rectangle and text
     const stripSvg = `
