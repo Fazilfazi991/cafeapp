@@ -20,15 +20,19 @@ export async function POST(req: Request) {
         }
 
         // Get brand settings
-        const { data: restaurants } = await supabase
+        const { data: restaurants, error: fetchError } = await supabase
             .from('restaurants')
             .select('id, name, cuisine_type, business_type, tone_of_voice, phone, address, website, brand_settings(primary_color, secondary_color, logo_url)')
             .eq('user_id', user.id)
             .limit(1)
 
+        if (fetchError) {
+            console.error('[DATABASE_FETCH_ERROR]', fetchError)
+        }
+
         const restaurant = restaurants?.[0]
         if (!restaurant) {
-            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
+            return NextResponse.json({ error: fetchError ? `DB Error: ${fetchError.message}` : 'Restaurant not found' }, { status: 404 })
         }
 
         const brand = restaurant.brand_settings?.[0] || { primary_color: '#FF6B35', logo_url: '' }
