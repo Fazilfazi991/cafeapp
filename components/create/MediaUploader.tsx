@@ -71,14 +71,30 @@ export default function MediaUploader({ onUploadComplete, onUploadError }: Media
             const filePath = `${restaurantId}/${fileName}`
             const bucket = isImage ? 'media' : 'videos' // We'll put both in 'media' for simplicity based on implementation plan
 
-            const { data, error } = await supabase.storage
-                .from('media') // using a single 'media' bucket
-                .upload(filePath, file, {
-                    cacheControl: '3600',
-                    upsert: false
-                })
+            // Extract supabase URL and ANON key from env dynamically using standard NEXT_PUBLIC vars
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-            if (error) throw new Error(`[STORAGE_UPLOAD] ${error.message} (Raw: ${JSON.stringify(error)})`)
+            // Get the current session to get the access token
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token || anonKey
+
+            // Manually fetch to Supabase Storage API to bypass the SDK hiding the 422 errors
+            const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/media/${filePath}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'apiKey': anonKey as string,
+                    'Content-Type': file.type,
+                    'x-upsert': 'false'
+                },
+                body: file
+            });
+
+            if (!uploadRes.ok) {
+                const errorText = await uploadRes.text();
+                throw new Error(`[STORAGE_UPLOAD_REST] Status: ${uploadRes.status}, Body: ${errorText}`);
+            }
 
             // Get public URL
             const { data: publicUrlData } = supabase.storage
