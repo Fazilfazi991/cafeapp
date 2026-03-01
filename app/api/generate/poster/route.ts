@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { generateAllThreeStyles } from '@/lib/gemini'
-import { renderPosterToImage, uploadPosterToSupabase } from '@/lib/poster-renderer'
 
 export async function POST(req: Request) {
     try {
@@ -42,8 +41,7 @@ export async function POST(req: Request) {
             font_style: 'modern'
         }
 
-        // Shared params for both Gemini and fallback
-        const sharedParams = {
+        const geminiParams = {
             photoUrl: imageUrl,
             logoUrl: brand.logo_url || undefined,
             businessName: restaurant.name,
@@ -62,7 +60,7 @@ export async function POST(req: Request) {
         // ═══════════════════════════════════════════════════════════════════
         try {
             console.log('[POSTER] Starting Gemini image generation...')
-            const posters = await generateAllThreeStyles(sharedParams)
+            const posters = await generateAllThreeStyles(geminiParams)
             console.log('[POSTER] Gemini generation successful!')
 
             return NextResponse.json({
@@ -71,46 +69,20 @@ export async function POST(req: Request) {
                 posters,
             })
         } catch (geminiError: any) {
-            console.error('[POSTER] Gemini failed, falling back to HTML:', geminiError?.message)
+            console.error('[POSTER] Gemini failed:', geminiError?.message)
         }
 
         // ═══════════════════════════════════════════════════════════════════
-        // FALLBACK: Generate with HTML/Satori templates
+        // FALLBACK: Return the original uploaded image for all 3 styles
         // ═══════════════════════════════════════════════════════════════════
-        console.log('[POSTER] Using HTML/Satori fallback...')
-
-        const templateParams = {
-            photoUrl: imageUrl,
-            businessName: restaurant.name,
-            tagline: restaurant.cuisine_type || '',
-            customText: promotionalText || '',
-            phone: restaurant.phone || '',
-            website: restaurant.website || restaurant.email || '',
-            logoUrl: brand.logo_url || '',
-            primaryColor: brand.primary_color || '#FF6B35',
-            secondaryColor: brand.secondary_color || '#FFFFFF',
-            fontStyle: brand.font_style || 'modern',
-        }
-
-        const [minimalBuffer, boldBuffer, lifestyleBuffer] = await Promise.all([
-            renderPosterToImage('minimal', templateParams),
-            renderPosterToImage('bold', templateParams),
-            renderPosterToImage('lifestyle', templateParams),
-        ])
-
-        const [minimalUrl, boldUrl, lifestyleUrl] = await Promise.all([
-            uploadPosterToSupabase(minimalBuffer, restaurant.id, 'minimal'),
-            uploadPosterToSupabase(boldBuffer, restaurant.id, 'bold'),
-            uploadPosterToSupabase(lifestyleBuffer, restaurant.id, 'lifestyle'),
-        ])
-
+        console.log('[POSTER] Returning original image as fallback...')
         return NextResponse.json({
             success: true,
-            method: 'html_fallback',
+            method: 'fallback',
             posters: {
-                minimal: minimalUrl,
-                bold: boldUrl,
-                lifestyle: lifestyleUrl,
+                minimal: imageUrl,
+                bold: imageUrl,
+                lifestyle: imageUrl,
             },
         })
 
