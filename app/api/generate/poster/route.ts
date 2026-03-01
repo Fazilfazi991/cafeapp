@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { enhancePhoto } from '@/lib/falai'
+import { enhanceFoodPhoto } from '@/lib/gemini'
 import { renderPosterToImage, uploadPosterToSupabase } from '@/lib/poster-renderer'
 
 export async function POST(req: Request) {
@@ -42,8 +42,8 @@ export async function POST(req: Request) {
             font_style: 'modern'
         }
 
-        // STEP 1 — Enhance photo with fal.ai (graceful fallback if it fails)
-        const enhancedPhotoUrl = await enhancePhoto(imageUrl)
+        // STEP 1 — Enhance photo with Gemini Flash (graceful fallback if it fails)
+        const enhancedPhotoUrl = await enhanceFoodPhoto(imageUrl)
 
         // STEP 2 — Shared template params
         const templateParams = {
