@@ -1,7 +1,8 @@
-import { createClient } from '@/lib/supabase-server'
-import { enhancePhoto, generateThreeStyles, removeBackground } from '@/lib/falai'
-import { compositePoster } from '@/lib/poster-compositor'
 import { NextResponse } from 'next/server'
+import { createClient } from '@/lib/supabase-server'
+import { enhancePhoto } from '@/lib/falai'
+import { renderTemplate } from '@/lib/poster-templates'
+import { renderPosterToImage, uploadPosterToSupabase } from '@/lib/poster-renderer'
 
 export async function POST(req: Request) {
     try {
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { imageUrl, includeText, promotionalText } = body
+        const { imageUrl, promotionalText } = body
 
         if (!imageUrl) {
             return NextResponse.json({ error: 'Missing image URL' }, { status: 400 })
@@ -22,7 +23,7 @@ export async function POST(req: Request) {
         // Get brand settings
         const { data: restaurants, error: fetchError } = await supabase
             .from('restaurants')
-            .select('id, name, cuisine_type, business_type, tone_of_voice, phone, email, address, website, brand_settings(primary_color, secondary_color, logo_url)')
+            .select('id, name, cuisine_type, business_type, tone_of_voice, phone, email, address, website, brand_settings(primary_color, secondary_color, logo_url, font_style)')
             .eq('user_id', user.id)
             .limit(1)
 
@@ -35,80 +36,54 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: fetchError ? `DB Error: ${fetchError.message}` : 'Restaurant not found' }, { status: 404 })
         }
 
-        const brand = restaurant.brand_settings?.[0] || { primary_color: '#FF6B35', logo_url: '' }
+        const brand = restaurant.brand_settings?.[0] || { primary_color: '#FF6B35', secondary_color: '#FFFFFF', logo_url: '', font_style: 'modern' }
 
-        // STEP 1 - Enhance photo and Extract Background
-        const [enhancedUrl, subjectUrl] = await Promise.all([
-            enhancePhoto(imageUrl),
-            removeBackground(imageUrl) // fal-ai/bria/background/remove
+        // STEP 1 - Enhance photo with fal.ai
+        const enhancedPhotoUrl = await enhancePhoto(imageUrl)
+
+        // STEP 2 - Build parameters and render 3 HTML templates
+        const templateParams = {
+            photoUrl: enhancedPhotoUrl,
+            businessName: restaurant.name,
+            tagline: restaurant.cuisine_type || 'Restaurant', // Using cuisine_type as default tagline for restaurants
+            customText: promotionalText,
+            phone: restaurant.phone,
+            website: restaurant.website || restaurant.email, // fallback to email if no web
+            logoUrl: brand.logo_url,
+            primaryColor: brand.primary_color,
+            secondaryColor: brand.secondary_color || '#FFFFFF',
+            fontStyle: brand.font_style || 'modern'
+        }
+
+        const [minimalHtml, boldHtml, lifestyleHtml] = await Promise.all([
+            renderTemplate('minimal', templateParams),
+            renderTemplate('bold', templateParams),
+            renderTemplate('lifestyle', templateParams)
         ]);
 
-        // STEP 2 - Generate 3 style variations
-        const { minimal, bold, lifestyle } = await generateThreeStyles({
-            imageUrl: enhancedUrl,
-            businessName: restaurant.name,
-            businessType: restaurant.business_type || 'restaurant',
-            cuisine: restaurant.cuisine_type || '',
-            tone: restaurant.tone_of_voice || 'professional',
-            primaryColor: brand.primary_color,
-            secondaryColor: brand.secondary_color || '#000000',
-            caption: body.caption || '', // Not directly used in fal but good for logging or future logic
-            includeText: includeText ?? true,
-            promotionalText: promotionalText || ''
-        })
+        // STEP 3 - Screenshots via Puppeteer Serverless + Upload to Supabase Storage
+        const [minimalBuffer, boldBuffer, lifestyleBuffer] = await Promise.all([
+            renderPosterToImage(minimalHtml, 'square'),
+            renderPosterToImage(boldHtml, 'square'),
+            renderPosterToImage(lifestyleHtml, 'square')
+        ]);
 
-        // STEP 3 - Add logo + contact strip to each
-        const minimalFinal = await compositePoster({
-            posterUrl: minimal,
-            subjectUrl: subjectUrl,
-            logoUrl: brand.logo_url,
-            businessName: restaurant.name,
-            phone: restaurant.phone,
-            website: restaurant.website,
-            email: restaurant.email,
-            address: restaurant.address,
-            primaryColor: brand.primary_color,
-            secondaryColor: brand.secondary_color || '#000000'
-        })
+        const [minimalUrl, boldUrl, lifestyleUrl] = await Promise.all([
+            uploadPosterToSupabase(minimalBuffer, restaurant.id, 'minimal'),
+            uploadPosterToSupabase(boldBuffer, restaurant.id, 'bold'),
+            uploadPosterToSupabase(lifestyleBuffer, restaurant.id, 'lifestyle')
+        ]);
 
-        const boldFinal = await compositePoster({
-            posterUrl: bold,
-            subjectUrl: subjectUrl,
-            logoUrl: brand.logo_url,
-            businessName: restaurant.name,
-            phone: restaurant.phone,
-            website: restaurant.website,
-            email: restaurant.email,
-            address: restaurant.address,
-            primaryColor: brand.primary_color,
-            secondaryColor: brand.secondary_color || '#000000'
-        })
-
-        const lifestyleFinal = await compositePoster({
-            posterUrl: lifestyle,
-            subjectUrl: subjectUrl,
-            logoUrl: brand.logo_url,
-            businessName: restaurant.name,
-            phone: restaurant.phone,
-            website: restaurant.website,
-            email: restaurant.email,
-            address: restaurant.address,
-            primaryColor: brand.primary_color,
-            secondaryColor: brand.secondary_color || '#000000'
-        })
-
-        // STEP 4 - Return all three + source
         return NextResponse.json({
             posters: {
-                minimal: minimalFinal,
-                bold: boldFinal,
-                lifestyle: lifestyleFinal
-            },
-            enhanced_source: enhancedUrl
+                minimal: minimalUrl,
+                bold: boldUrl,
+                lifestyle: lifestyleUrl
+            }
         })
 
     } catch (error: any) {
-        console.error('[POSTER_GENERATE_ERROR]', error)
-        return NextResponse.json({ error: error.message || 'Internal Error' }, { status: 500 })
+        console.error('[POSTER_GENERATION_ERROR]', error)
+        return NextResponse.json({ error: error.message || 'Failed to generate posters' }, { status: 500 })
     }
 }

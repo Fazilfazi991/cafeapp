@@ -5,6 +5,9 @@ const nextConfig = {
     },
     typescript: {
         ignoreBuildErrors: true,
+    },
+    experimental: {
+        serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium']
     }
 };
 
