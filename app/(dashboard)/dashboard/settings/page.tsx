@@ -1,8 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
-import { redirect } from 'next/navigation'
-import { revalidatePath } from 'next/cache'
 import GmbLocationManager from '@/components/settings/GmbLocationManager'
-import SubmitButton from '@/components/settings/SubmitButton'
+import ProfileForm from '@/components/settings/ProfileForm'
 
 export default async function SettingsPage() {
     const supabase = createClient()
@@ -20,67 +18,6 @@ export default async function SettingsPage() {
 
     if (!restaurant) return null
 
-    const updateProfile = async (formData: FormData) => {
-        'use server'
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
-        if (!user) return
-
-        const name = formData.get('name') as string
-        const website = formData.get('website') as string
-        const phone = formData.get('phone') as string
-        const address = formData.get('address') as string
-        const business_type = formData.get('business_type') as string
-        const font_style = formData.get('font_style') as string
-
-        try {
-            // Update restaurants table
-            const { error: restError } = await supabase
-                .from('restaurants')
-                .update({ name, website, phone, address, business_type })
-                .eq('user_id', user.id)
-                
-            if (restError) throw restError;
-                
-            // Check if brand_settings exists
-            const { data: existingBrand } = await supabase
-                .from('brand_settings')
-                .select('id')
-                .eq('restaurant_id', restaurant.id)
-                .single()
-
-            if (existingBrand) {
-                // Update brand_settings table
-                const { error: brandError } = await supabase
-                    .from('brand_settings')
-                    .update({ font_style })
-                    .eq('restaurant_id', restaurant.id)
-
-                if (brandError) throw brandError;
-            } else {
-                // Create brand_settings if it doesn't exist yet
-                const { error: brandInsertError } = await supabase
-                    .from('brand_settings')
-                    .insert({ 
-                        restaurant_id: restaurant.id, 
-                        font_style,
-                        primary_color: '#FF6B35', // default
-                        secondary_color: '#1A1A1A' // default
-                    })
-
-                if (brandInsertError) throw brandInsertError;
-            }
-
-        } catch (error) {
-            console.error('Error saving profile:', error);
-            // In a real app we'd return an error state to the form, but for now we'll just log
-        }
-
-        revalidatePath('/dashboard/settings')
-    }
-
-    // Removed Buffer Server Action - Now using Client Component
-
     return (
         <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
             <h1 className="text-3xl font-bold mb-8">Settings</h1>
@@ -88,86 +25,7 @@ export default async function SettingsPage() {
             <div className="flex flex-col gap-8">
 
                 {/* Profile Settings */}
-                <div className="bg-white rounded-xl border p-6 shadow-sm">
-                    <h2 className="text-lg font-bold mb-4">Business Profile</h2>
-                    <form action={updateProfile} className="flex flex-col gap-4 max-w-md">
-                        <div>
-                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Name</label>
-                            <input
-                                name="name"
-                                defaultValue={restaurant.name}
-                                required
-                                className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Website</label>
-                            <input
-                                name="website"
-                                defaultValue={restaurant.website || ''}
-                                className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
-                            />
-                        </div>
-                        
-                        <div>
-                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Phone Number</label>
-                            <input
-                                name="phone"
-                                defaultValue={restaurant.phone || ''}
-                                placeholder="(555) 123-4567"
-                                className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
-                            />
-                            <p className="text-[11px] text-gray-500 mt-1">Used on your AI generated posters.</p>
-                        </div>
-
-                        <div>
-                            <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Address</label>
-                            <textarea
-                                name="address"
-                                defaultValue={restaurant.address || ''}
-                                placeholder="123 Main St, City, ST 12345"
-                                rows={2}
-                                className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35] resize-none"
-                            />
-                            <p className="text-[11px] text-gray-500 mt-1">Used to provide local context to AI captions.</p>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Type</label>
-                                <select 
-                                    name="business_type" 
-                                    defaultValue={restaurant.business_type || 'restaurant'}
-                                    className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
-                                >
-                                    <option value="restaurant">Restaurant / Cafe</option>
-                                    <option value="salon">Salon / Spa</option>
-                                    <option value="gym">Gym / Fitness</option>
-                                    <option value="retail">Retail Store</option>
-                                    <option value="real_estate">Real Estate</option>
-                                    <option value="medical">Medical / Clinic</option>
-                                    <option value="education">Education</option>
-                                    <option value="other">Other Business</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Font Style</label>
-                                <select 
-                                    name="font_style" 
-                                    defaultValue={restaurant.brand_settings?.[0]?.font_style || 'modern'}
-                                    className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
-                                >
-                                    <option value="modern">Modern (Sans-serif)</option>
-                                    <option value="classic">Classic (Serif)</option>
-                                    <option value="playful">Playful (Rounded)</option>
-                                    <option value="elegant">Elegant (Script)</option>
-                                </select>
-                            </div>
-                        </div>
-                        <SubmitButton />
-                    </form>
-                </div>
+                <ProfileForm restaurant={restaurant} />
 
                 {/* Billing Overview */}
                 <div className="bg-white rounded-xl border p-6 shadow-sm">
