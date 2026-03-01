@@ -13,7 +13,7 @@ export function buildPosterPrompt(params: {
 
     // Business Type Base Prompt
     if (businessType === 'restaurant' || businessType === 'cafe') {
-        basePrompt = `Professional food photography social media poster for ${businessName}, a ${cuisine || 'fine'} restaurant. The food should look appetizing, fresh and delicious. Warm inviting atmosphere.`;
+        basePrompt = `Highly stylized food advertisement poster for ${businessName}. The food is placed centrally on a dramatic, dark aesthetic background (like deep navy blue, dark maroon, or rich black). Featuring dynamic abstract graphic elements like paint splatters, wavy brush strokes, or torn paper edges highlighting the dish. High-contrast, bold, premium aesthetic.`;
     } else if (businessType === 'salon' || businessType === 'spa') {
         basePrompt = `Elegant beauty and wellness social media poster for ${businessName}. Clean, luxurious aesthetic. Soft lighting, premium feel.`;
     } else if (businessType === 'gym' || businessType === 'fitness') {
@@ -45,11 +45,11 @@ export function buildPosterPrompt(params: {
     // Style Modifiers
     let stylePrompt = '';
     if (style === 'minimal') {
-        stylePrompt = " Minimalist design, lots of white space, subtle branding, elegant typography overlay.";
+        stylePrompt = " Elegant composition with deep dark background, crisp central food spotlight, clean graphic lines, and sharp, stylized typography.";
     } else if (style === 'bold') {
-        stylePrompt = ` Bold graphic design, strong color blocking using ${primaryColor}, large text overlay, high impact.`;
+        stylePrompt = ` Extremely bold graphic design. Dark background with bright, contrasting organic paint splatters and wavy shapes using ${primaryColor}. Large, playful, cursive 'Delicious Food Menu' text.`;
     } else if (style === 'lifestyle') {
-        stylePrompt = " Lifestyle photography feel, natural candid aesthetic, subtle text overlay, warm tones.";
+        stylePrompt = ` Premium, moody lifestyle advertisement. Rich, dark, warm tones. Abstract liquid splashes or energetic organic shapes in ${primaryColor} around the food.`;
     }
 
     // Technical Requirements
