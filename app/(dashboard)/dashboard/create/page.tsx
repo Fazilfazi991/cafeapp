@@ -34,6 +34,7 @@ export default function CreatePostPage() {
     const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['instagram'])
     const [selectedCaption, setSelectedCaption] = useState<string>('')
     const [contentType, setContentType] = useState<string>('Promotional Post')
+    const [includeText, setIncludeText] = useState<boolean>(true)
 
     // Scheduling State
     const [isScheduling, setIsScheduling] = useState(false)
@@ -83,13 +84,13 @@ export default function CreatePostPage() {
                 const posterRes = await fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '' })
+                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', includeText })
                 })
                 const posterText = await posterRes.text()
                 let data;
                 try { data = JSON.parse(posterText) } catch (e) { throw new Error(posterText) }
                 if (!posterRes.ok) throw new Error(data.error || posterText)
-                
+
                 setPosters(data.posters)
                 setSelectedStyle('minimal')
             }
@@ -268,8 +269,8 @@ export default function CreatePostPage() {
                                             <button
                                                 onClick={() => handleTogglePlatform(p)}
                                                 className={`w-full px-4 py-3 text-sm font-semibold rounded-lg border capitalize transition-all ${isSelected
-                                                        ? 'bg-[#FF6B35] text-white border-[#FF6B35] shadow-md'
-                                                        : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+                                                    ? 'bg-[#FF6B35] text-white border-[#FF6B35] shadow-md'
+                                                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
                                                     }`}
                                             >
                                                 {p === 'gmb' ? 'Google My Business' : p}
@@ -297,6 +298,20 @@ export default function CreatePostPage() {
                                 <option value="Engagement Post">Engagement Post</option>
                             </select>
                         </div>
+
+                        {fileType === 'image' && (
+                            <div className="mb-6 flex items-center justify-between p-4 bg-gray-50 rounded-md border border-gray-200">
+                                <div>
+                                    <label className="text-sm font-semibold text-gray-800 block">Include Promotional Text in Image</label>
+                                    <p className="text-xs text-gray-500 mt-1">If on, AI will generate styling text like "Delicious Food" directly into the design.</p>
+                                </div>
+                                <div className="relative inline-flex items-center cursor-pointer" onClick={() => setIncludeText(!includeText)}>
+                                    <div className={`w-11 h-6 rounded-full transition-colors ${includeText ? 'bg-[#FF6B35]' : 'bg-gray-300'}`}>
+                                        <div className={`w-5 h-5 bg-white rounded-full mt-0.5 shadow-sm transform transition-transform ${includeText ? 'translate-x-5' : 'translate-x-1'}`}></div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <button
                             onClick={generateAIContent}
@@ -333,13 +348,13 @@ export default function CreatePostPage() {
                                     </div>
                                 ))}
                             </div>
-                            
+
                             {posters && (
                                 <div className="mt-8">
                                     <h3 className="text-sm font-medium text-gray-700 mb-3 block">Select Your Poster Style:</h3>
                                     <div className="grid grid-cols-3 gap-3">
                                         {(['minimal', 'bold', 'lifestyle'] as const).map(style => (
-                                            <div 
+                                            <div
                                                 key={style}
                                                 onClick={() => setSelectedStyle(style)}
                                                 className={`border rounded-lg p-2 cursor-pointer transition-all ${selectedStyle === style ? 'border-[#FF6B35] ring-2 ring-[#FF6B35]/20 bg-orange-50' : 'hover:bg-gray-50'}`}

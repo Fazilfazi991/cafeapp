@@ -13,7 +13,8 @@ export async function generatePoster(params: {
     primaryColor: string,
     secondaryColor: string,
     caption: string,
-    style: 'minimal' | 'bold' | 'lifestyle'
+    style: 'minimal' | 'bold' | 'lifestyle',
+    includeText?: boolean
 }): Promise<string> {
 
     const builtPrompt = buildPosterPrompt({
@@ -24,7 +25,8 @@ export async function generatePoster(params: {
         tone: params.tone,
         primaryColor: params.primaryColor,
         caption: params.caption,
-        style: params.style
+        style: params.style,
+        includeText: params.includeText
     });
 
     let result: any;
@@ -62,13 +64,14 @@ export async function generateThreeStyles(params: {
     tone: string,
     primaryColor: string,
     secondaryColor: string,
-    caption: string
+    caption: string,
+    includeText?: boolean
 }) {
     // Call in parallel for speed
     const [minimal, bold, lifestyle] = await Promise.all([
-        generatePoster({ ...params, style: 'minimal' }),
-        generatePoster({ ...params, style: 'bold' }),
-        generatePoster({ ...params, style: 'lifestyle' })
+        generatePoster({ ...params, style: 'minimal', includeText: params.includeText }),
+        generatePoster({ ...params, style: 'bold', includeText: params.includeText }),
+        generatePoster({ ...params, style: 'lifestyle', includeText: params.includeText })
     ]);
 
     return { minimal, bold, lifestyle };

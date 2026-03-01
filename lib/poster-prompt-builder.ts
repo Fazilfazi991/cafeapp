@@ -6,28 +6,29 @@ export function buildPosterPrompt(params: {
     tone: string,
     primaryColor: string,
     caption: string,
-    style: string
+    style: string,
+    includeText?: boolean
 }): string {
-    const { businessName, businessType, cuisine, tone, primaryColor, style } = params;
+    const { businessType, cuisine, tone, primaryColor, style, includeText } = params;
     let basePrompt = '';
 
     // Business Type Base Prompt
     if (businessType === 'restaurant' || businessType === 'cafe') {
-        basePrompt = `Highly stylized food advertisement poster for ${businessName}. The food is placed centrally on a dramatic, dark aesthetic background (like deep navy blue, dark maroon, or rich black). Featuring dynamic abstract graphic elements like paint splatters, wavy brush strokes, or torn paper edges highlighting the dish. High-contrast, bold, premium aesthetic.`;
+        basePrompt = `Highly stylized food advertisement poster. The food is placed centrally on a dramatic, dark aesthetic background (like deep navy blue, dark maroon, or rich black). Featuring dynamic abstract graphic elements like paint splatters, wavy brush strokes, or torn paper edges highlighting the dish. High-contrast, bold, premium aesthetic.`;
     } else if (businessType === 'salon' || businessType === 'spa') {
-        basePrompt = `Elegant beauty and wellness social media poster for ${businessName}. Clean, luxurious aesthetic. Soft lighting, premium feel.`;
+        basePrompt = `Elegant beauty and wellness social media poster. Clean, luxurious aesthetic. Soft lighting, premium feel.`;
     } else if (businessType === 'gym' || businessType === 'fitness') {
-        basePrompt = `Energetic fitness social media poster for ${businessName}. Dynamic, motivating aesthetic. Bold energy, strong visual impact.`;
+        basePrompt = `Energetic fitness social media poster. Dynamic, motivating aesthetic. Bold energy, strong visual impact.`;
     } else if (businessType === 'retail') {
-        basePrompt = `Professional retail product social media poster for ${businessName}. Clean product showcase, lifestyle feel, aspirational aesthetic.`;
+        basePrompt = `Professional retail product social media poster. Clean product showcase, lifestyle feel, aspirational aesthetic.`;
     } else if (businessType === 'real_estate') {
-        basePrompt = `Premium real estate social media poster for ${businessName}. Sophisticated, professional, trustworthy aesthetic. Clean modern design.`;
+        basePrompt = `Premium real estate social media poster. Sophisticated, professional, trustworthy aesthetic. Clean modern design.`;
     } else if (businessType === 'medical' || businessType === 'clinic') {
-        basePrompt = `Professional medical and wellness social media poster for ${businessName}. Clean, trustworthy, caring aesthetic. Light, clinical but warm.`;
+        basePrompt = `Professional medical and wellness social media poster. Clean, trustworthy, caring aesthetic. Light, clinical but warm.`;
     } else if (businessType === 'education') {
-        basePrompt = `Engaging educational social media poster for ${businessName}. Inspiring, professional, motivating aesthetic.`;
+        basePrompt = `Engaging educational social media poster. Inspiring, professional, motivating aesthetic.`;
     } else {
-        basePrompt = `Professional business social media poster for ${businessName}. Clean, modern, engaging aesthetic.`;
+        basePrompt = `Professional business social media poster. Clean, modern, engaging aesthetic.`;
     }
 
     // Tone Modifiers
@@ -45,15 +46,21 @@ export function buildPosterPrompt(params: {
     // Style Modifiers
     let stylePrompt = '';
     if (style === 'minimal') {
-        stylePrompt = " Elegant composition with deep dark background, crisp central food spotlight, clean graphic lines, and sharp, stylized typography.";
+        stylePrompt = " Elegant composition with deep dark background, crisp central food spotlight, clean graphic lines.";
+        if (includeText) stylePrompt += " Sharp, stylized typography overlay.";
     } else if (style === 'bold') {
-        stylePrompt = ` Extremely bold graphic design. Dark background with bright, contrasting organic paint splatters and wavy shapes using ${primaryColor}. Large, playful, cursive 'Delicious Food Menu' text.`;
+        stylePrompt = ` Extremely bold graphic design. Dark background with bright, contrasting organic paint splatters and wavy shapes using ${primaryColor}.`;
+        if (includeText) stylePrompt += " Large, playful, cursive 'Delicious Food Menu' text.";
     } else if (style === 'lifestyle') {
         stylePrompt = ` Premium, moody lifestyle advertisement. Rich, dark, warm tones. Abstract liquid splashes or energetic organic shapes in ${primaryColor} around the food.`;
     }
 
     // Technical Requirements
-    const techPrompt = ` Social media post format, 1080x1080 pixels, professional photography quality, suitable for Instagram and Facebook, ${primaryColor} as accent color, high resolution, sharp details.`;
+    let techPrompt = ` Social media post format, 1080x1080 pixels, professional photography quality, suitable for Instagram and Facebook, ${primaryColor} as accent color, high resolution, sharp details.`;
+
+    if (includeText === false) {
+        techPrompt += " CRITICAL: ABSOLUTELY NO TEXT. NO TYPOGRAPHY. NO LETTERS. NO LOGOS. DO NOT GENERATE TEXT.";
+    }
 
     const finalPrompt = basePrompt + tonePrompt + stylePrompt + techPrompt;
     return finalPrompt;
