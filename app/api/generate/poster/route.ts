@@ -13,7 +13,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { imageUrl, includeText } = body
+        const { imageUrl, includeText, promotionalText } = body
 
         if (!imageUrl) {
             return NextResponse.json({ error: 'Missing image URL' }, { status: 400 })
@@ -53,7 +53,8 @@ export async function POST(req: Request) {
             primaryColor: brand.primary_color,
             secondaryColor: brand.secondary_color || '#000000',
             caption: body.caption || '', // Not directly used in fal but good for logging or future logic
-            includeText: includeText ?? true
+            includeText: includeText ?? true,
+            promotionalText: promotionalText || ''
         })
 
         // STEP 3 - Add logo + contact strip to each

@@ -35,6 +35,7 @@ export default function CreatePostPage() {
     const [selectedCaption, setSelectedCaption] = useState<string>('')
     const [contentType, setContentType] = useState<string>('Promotional Post')
     const [includeText, setIncludeText] = useState<boolean>(true)
+    const [promotionalText, setPromotionalText] = useState<string>('')
 
     // Scheduling State
     const [isScheduling, setIsScheduling] = useState(false)
@@ -84,7 +85,7 @@ export default function CreatePostPage() {
                 const posterRes = await fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', includeText })
+                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', includeText, promotionalText })
                 })
                 const posterText = await posterRes.text()
                 let data;
@@ -299,16 +300,32 @@ export default function CreatePostPage() {
                             </select>
                         </div>
 
-                        <div className="mb-6 flex items-center justify-between p-4 bg-gray-50 rounded-md border border-gray-200">
-                            <div>
-                                <label className="text-sm font-semibold text-gray-800 block">Include Promotional Text in Image</label>
-                                <p className="text-xs text-gray-500 mt-1">If on, AI will generate styling text like "Delicious Food" directly into the design.</p>
-                            </div>
-                            <div className="relative inline-flex items-center cursor-pointer" onClick={() => setIncludeText(!includeText)}>
-                                <div className={`w-11 h-6 rounded-full transition-colors ${includeText ? 'bg-[#FF6B35]' : 'bg-gray-300'}`}>
-                                    <div className={`w-5 h-5 bg-white rounded-full mt-0.5 shadow-sm transform transition-transform ${includeText ? 'translate-x-5' : 'translate-x-1'}`}></div>
+                        <div className="mb-6 flex flex-col gap-4 p-4 bg-gray-50 rounded-md border border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <label className="text-sm font-semibold text-gray-800 block">Include Text on Poster</label>
+                                    <p className="text-xs text-gray-500 mt-1">If on, AI will generate styling text or specific details directly into the design.</p>
+                                </div>
+                                <div className="relative inline-flex items-center cursor-pointer" onClick={() => setIncludeText(!includeText)}>
+                                    <div className={`w-11 h-6 rounded-full transition-colors ${includeText ? 'bg-[#FF6B35]' : 'bg-gray-300'}`}>
+                                        <div className={`w-5 h-5 bg-white rounded-full mt-0.5 shadow-sm transform transition-transform ${includeText ? 'translate-x-5' : 'translate-x-1'}`}></div>
+                                    </div>
                                 </div>
                             </div>
+
+                            {includeText && (
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-700 block mb-1">Custom Text (Optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder='e.g., "Special Offer $9.99" or "Delicious Menu"'
+                                        value={promotionalText}
+                                        onChange={(e) => setPromotionalText(e.target.value)}
+                                        className="w-full text-sm p-2 bg-white border border-gray-300 rounded focus:outline-none focus:border-[#FF6B35]"
+                                    />
+                                    <p className="text-[10px] text-gray-500 mt-1">Leave blank for generic aesthetic text, or type specific pricing/details for the AI to draw.</p>
+                                </div>
+                            )}
                         </div>
 
                         <button

@@ -7,9 +7,10 @@ export function buildPosterPrompt(params: {
     primaryColor: string,
     caption: string,
     style: string,
-    includeText?: boolean
+    includeText?: boolean,
+    promotionalText?: string
 }): string {
-    const { businessType, cuisine, tone, primaryColor, style, includeText } = params;
+    const { businessType, cuisine, tone, primaryColor, style, includeText, promotionalText } = params;
     let basePrompt = '';
 
     // Business Type Base Prompt
@@ -45,12 +46,15 @@ export function buildPosterPrompt(params: {
 
     // Style Modifiers
     let stylePrompt = '';
+    const textCommand = promotionalText ? ` Prominently display the exact text: "${promotionalText}".` : " Sharp, stylized typography overlay.";
+    const boldTextCommand = promotionalText ? ` Large, playful, cursive text reading precisely: "${promotionalText}".` : " Large, playful, cursive 'Delicious Food Menu' text.";
+
     if (style === 'minimal') {
         stylePrompt = " Elegant composition with deep dark background, crisp central food spotlight, clean graphic lines.";
-        if (includeText) stylePrompt += " Sharp, stylized typography overlay.";
+        if (includeText) stylePrompt += textCommand;
     } else if (style === 'bold') {
         stylePrompt = ` Extremely bold graphic design. Dark background with bright, contrasting organic paint splatters and wavy shapes using ${primaryColor}.`;
-        if (includeText) stylePrompt += " Large, playful, cursive 'Delicious Food Menu' text.";
+        if (includeText) stylePrompt += boldTextCommand;
     } else if (style === 'lifestyle') {
         stylePrompt = ` Premium, moody lifestyle advertisement. Rich, dark, warm tones. Abstract liquid splashes or energetic organic shapes in ${primaryColor} around the food.`;
     }
