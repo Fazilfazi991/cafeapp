@@ -22,6 +22,9 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
         <div className="bg-white rounded-xl border p-6 shadow-sm">
             <h2 className="text-lg font-bold mb-4">Business Profile</h2>
             <form action={formAction} className="flex flex-col gap-4 max-w-md">
+                <input type="hidden" name="user_id" value={restaurant.user_id} />
+                <input type="hidden" name="restaurant_id" value={restaurant.id} />
+                
                 <div>
                     <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Name</label>
                     <input

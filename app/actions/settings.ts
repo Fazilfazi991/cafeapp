@@ -5,10 +5,12 @@ import { revalidatePath } from 'next/cache'
 
 export async function updateProfile(prevState: any, formData: FormData) {
     const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+
+    const user_id = formData.get('user_id') as string
+    const restaurant_id = formData.get('restaurant_id') as string
     
-    if (!user) {
-        return { error: 'Not authenticated', success: false }
+    if (!user_id || !restaurant_id) {
+        return { error: 'Missing security context. Please refresh and try again.', success: false }
     }
 
     const name = formData.get('name') as string
@@ -19,21 +21,12 @@ export async function updateProfile(prevState: any, formData: FormData) {
     const font_style = formData.get('font_style') as string
 
     try {
-        // Get the restaurant ID first
-        const { data: restaurants } = await supabase
-            .from('restaurants')
-            .select('id')
-            .eq('user_id', user.id)
-            .limit(1)
-            
-        const restaurant = restaurants?.[0]
-        if (!restaurant) return { error: 'Restaurant not found', success: false }
 
         // Update restaurants table
         const { error: restError } = await supabase
             .from('restaurants')
             .update({ name, website, phone, address, business_type })
-            .eq('user_id', user.id)
+            .eq('user_id', user_id)
             
         if (restError) throw new Error(`Restaurant Update Error: ${restError.message} (Code: ${restError.code})`)
             
@@ -41,7 +34,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
         const { data: existingBrand } = await supabase
             .from('brand_settings')
             .select('id')
-            .eq('restaurant_id', restaurant.id)
+            .eq('restaurant_id', restaurant_id)
             .single()
 
         if (existingBrand) {
@@ -49,7 +42,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
             const { error: brandError } = await supabase
                 .from('brand_settings')
                 .update({ font_style })
-                .eq('restaurant_id', restaurant.id)
+                .eq('restaurant_id', restaurant_id)
 
             if (brandError) throw new Error(`Brand Update Error: ${brandError.message}`)
         } else {
@@ -57,7 +50,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
             const { error: brandInsertError } = await supabase
                 .from('brand_settings')
                 .insert({ 
-                    restaurant_id: restaurant.id, 
+                    restaurant_id: restaurant_id, 
                     font_style,
                     primary_color: '#FF6B35', // default
                     secondary_color: '#1A1A1A' // default
