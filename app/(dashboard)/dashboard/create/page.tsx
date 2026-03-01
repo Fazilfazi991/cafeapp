@@ -299,19 +299,17 @@ export default function CreatePostPage() {
                             </select>
                         </div>
 
-                        {fileType === 'image' && (
-                            <div className="mb-6 flex items-center justify-between p-4 bg-gray-50 rounded-md border border-gray-200">
-                                <div>
-                                    <label className="text-sm font-semibold text-gray-800 block">Include Promotional Text in Image</label>
-                                    <p className="text-xs text-gray-500 mt-1">If on, AI will generate styling text like "Delicious Food" directly into the design.</p>
-                                </div>
-                                <div className="relative inline-flex items-center cursor-pointer" onClick={() => setIncludeText(!includeText)}>
-                                    <div className={`w-11 h-6 rounded-full transition-colors ${includeText ? 'bg-[#FF6B35]' : 'bg-gray-300'}`}>
-                                        <div className={`w-5 h-5 bg-white rounded-full mt-0.5 shadow-sm transform transition-transform ${includeText ? 'translate-x-5' : 'translate-x-1'}`}></div>
-                                    </div>
+                        <div className="mb-6 flex items-center justify-between p-4 bg-gray-50 rounded-md border border-gray-200">
+                            <div>
+                                <label className="text-sm font-semibold text-gray-800 block">Include Promotional Text in Image</label>
+                                <p className="text-xs text-gray-500 mt-1">If on, AI will generate styling text like "Delicious Food" directly into the design.</p>
+                            </div>
+                            <div className="relative inline-flex items-center cursor-pointer" onClick={() => setIncludeText(!includeText)}>
+                                <div className={`w-11 h-6 rounded-full transition-colors ${includeText ? 'bg-[#FF6B35]' : 'bg-gray-300'}`}>
+                                    <div className={`w-5 h-5 bg-white rounded-full mt-0.5 shadow-sm transform transition-transform ${includeText ? 'translate-x-5' : 'translate-x-1'}`}></div>
                                 </div>
                             </div>
-                        )}
+                        </div>
 
                         <button
                             onClick={generateAIContent}
