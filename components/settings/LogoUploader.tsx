@@ -49,7 +49,7 @@ export default function LogoUploader({
                     'Authorization': `Bearer ${token}`,
                     'apiKey': anonKey as string,
                     'Content-Type': file.type,
-                    'x-upsert': 'true' // Allow overwriting same file name
+                    'x-upsert': 'false'
                 },
                 body: file
             });
