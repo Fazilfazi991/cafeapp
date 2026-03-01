@@ -34,7 +34,7 @@ export async function generatePoster(params: {
                 prompt: builtPrompt,
                 image_url: params.imageUrl,
                 image_size: "square_hd",
-                num_inference_steps: 28,
+                num_inference_steps: 12, // Flux Schnell has a hard max of 12 steps
                 guidance_scale: 3.5,
                 num_images: 1,
                 enable_safety_checker: true
