@@ -104,7 +104,11 @@ export default function MediaUploader({ onUploadComplete, onUploadError }: Media
 
         } catch (err: any) {
             console.error('Upload error:', err)
-            onUploadError(err.message || 'Failed to upload file.')
+            onUploadError(
+                err?.message
+                    ? `Upload Failed: ${err.message}`
+                    : `Upload Failed: ${JSON.stringify(err)}`
+            )
             setPreviewUrl(null)
         } finally {
             setIsUploading(false)
