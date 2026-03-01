@@ -6,9 +6,12 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
-    // Next.js 14.2: external packages for server components (keeps Puppeteer out of the edge bundle)
-    experimental: {
-        serverComponentsExternalPackages: ['puppeteer-core', '@sparticuz/chromium'],
+    webpack: (config, { isServer }) => {
+        if (isServer) {
+            // These packages contain native binaries — don't try to bundle them
+            config.externals = [...(config.externals || []), '@resvg/resvg-js'];
+        }
+        return config;
     },
 };
 

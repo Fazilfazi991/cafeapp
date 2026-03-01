@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
 import { enhancePhoto } from '@/lib/falai'
-import { renderTemplate } from '@/lib/poster-templates'
 import { renderPosterToImage, uploadPosterToSupabase } from '@/lib/poster-renderer'
 
 export async function POST(req: Request) {
@@ -20,10 +19,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Missing image URL' }, { status: 400 })
         }
 
-        // Get brand settings
+        // Fetch restaurant + brand settings
         const { data: restaurants, error: fetchError } = await supabase
             .from('restaurants')
-            .select('id, name, cuisine_type, business_type, tone_of_voice, phone, email, address, website, brand_settings(primary_color, secondary_color, logo_url, font_style)')
+            .select('id, name, cuisine_type, phone, email, website, brand_settings(primary_color, secondary_color, logo_url, font_style)')
             .eq('user_id', user.id)
             .limit(1)
 
@@ -36,49 +35,49 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: fetchError ? `DB Error: ${fetchError.message}` : 'Restaurant not found' }, { status: 404 })
         }
 
-        const brand = restaurant.brand_settings?.[0] || { primary_color: '#FF6B35', secondary_color: '#FFFFFF', logo_url: '', font_style: 'modern' }
+        const brand = restaurant.brand_settings?.[0] || {
+            primary_color: '#FF6B35',
+            secondary_color: '#FFFFFF',
+            logo_url: '',
+            font_style: 'modern'
+        }
 
-        // STEP 1 - Enhance photo with fal.ai
+        // STEP 1 — Enhance photo with fal.ai (graceful fallback if it fails)
         const enhancedPhotoUrl = await enhancePhoto(imageUrl)
 
-        // STEP 2 - Build parameters and render 3 HTML templates
+        // STEP 2 — Shared template params
         const templateParams = {
             photoUrl: enhancedPhotoUrl,
             businessName: restaurant.name,
-            tagline: restaurant.cuisine_type || 'Restaurant', // Using cuisine_type as default tagline for restaurants
-            customText: promotionalText,
-            phone: restaurant.phone,
-            website: restaurant.website || restaurant.email, // fallback to email if no web
-            logoUrl: brand.logo_url,
-            primaryColor: brand.primary_color,
+            tagline: restaurant.cuisine_type || '',
+            customText: promotionalText || '',
+            phone: restaurant.phone || '',
+            website: restaurant.website || restaurant.email || '',
+            logoUrl: brand.logo_url || '',
+            primaryColor: brand.primary_color || '#FF6B35',
             secondaryColor: brand.secondary_color || '#FFFFFF',
-            fontStyle: brand.font_style || 'modern'
+            fontStyle: brand.font_style || 'modern',
         }
 
-        const [minimalHtml, boldHtml, lifestyleHtml] = await Promise.all([
-            renderTemplate('minimal', templateParams),
-            renderTemplate('bold', templateParams),
-            renderTemplate('lifestyle', templateParams)
-        ]);
-
-        // STEP 3 - Screenshots via Puppeteer Serverless + Upload to Supabase Storage
+        // STEP 3 — Render all 3 templates in parallel using Satori (no Chrome needed)
         const [minimalBuffer, boldBuffer, lifestyleBuffer] = await Promise.all([
-            renderPosterToImage(minimalHtml, 'square'),
-            renderPosterToImage(boldHtml, 'square'),
-            renderPosterToImage(lifestyleHtml, 'square')
-        ]);
+            renderPosterToImage('minimal', templateParams),
+            renderPosterToImage('bold', templateParams),
+            renderPosterToImage('lifestyle', templateParams),
+        ])
 
+        // STEP 4 — Upload all 3 to Supabase Storage
         const [minimalUrl, boldUrl, lifestyleUrl] = await Promise.all([
             uploadPosterToSupabase(minimalBuffer, restaurant.id, 'minimal'),
             uploadPosterToSupabase(boldBuffer, restaurant.id, 'bold'),
-            uploadPosterToSupabase(lifestyleBuffer, restaurant.id, 'lifestyle')
-        ]);
+            uploadPosterToSupabase(lifestyleBuffer, restaurant.id, 'lifestyle'),
+        ])
 
         return NextResponse.json({
             posters: {
                 minimal: minimalUrl,
                 bold: boldUrl,
-                lifestyle: lifestyleUrl
+                lifestyle: lifestyleUrl,
             }
         })
 
