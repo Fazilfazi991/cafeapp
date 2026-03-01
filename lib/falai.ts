@@ -37,6 +37,7 @@ export async function generatePoster(params: {
                 num_inference_steps: 12, // Flux Schnell has a hard max of 12 steps
                 guidance_scale: 3.5,
                 num_images: 1,
+                strength: 0.35, // Preserve original uploaded food/item precisely
                 enable_safety_checker: true
             } as any,
             pollInterval: 2000,
