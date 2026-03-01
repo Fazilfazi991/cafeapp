@@ -78,7 +78,7 @@ export default function MediaUploader({ onUploadComplete, onUploadError }: Media
                     upsert: false
                 })
 
-            if (error) throw error
+            if (error) throw new Error(`[STORAGE_UPLOAD] ${error.message} (Raw: ${JSON.stringify(error)})`)
 
             // Get public URL
             const { data: publicUrlData } = supabase.storage
@@ -98,7 +98,7 @@ export default function MediaUploader({ onUploadComplete, onUploadError }: Media
                 .select()
                 .single()
 
-            if (dbError) throw dbError
+            if (dbError) throw new Error(`[DB_INSERT] ${dbError.message} (Code: ${dbError.code}, Details: ${dbError.details})`)
 
             onUploadComplete(publicUrlData.publicUrl, isImage ? 'image' : 'video', file.name)
 
