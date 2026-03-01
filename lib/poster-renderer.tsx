@@ -1,16 +1,15 @@
 import satori from 'satori';
-import { Resvg } from '@resvg/resvg-js';
+import sharp from 'sharp';
 import { createClient } from '@/lib/supabase-server';
-import { PosterTemplateParams } from './poster-templates';
-import { buildMinimalCleanSatori, buildBoldImpactSatori, buildLifestyleFrameSatori } from './poster-templates';
+import { PosterTemplateParams, buildMinimalCleanSatori, buildBoldImpactSatori, buildLifestyleFrameSatori } from './poster-templates';
 
-// Fetch a font as ArrayBuffer for Satori (required at runtime on Vercel)
+// Fetch a font as ArrayBuffer for Satori
 async function fetchFont(url: string): Promise<ArrayBuffer> {
     const res = await fetch(url);
     return res.arrayBuffer();
 }
 
-// Fetch an image as a data URL (so Satori can embed it without network issues)
+// Convert a remote URL to a base64 data URL so Satori can embed it inline
 export async function toDataUrl(url: string): Promise<string> {
     try {
         const res = await fetch(url);
@@ -19,7 +18,7 @@ export async function toDataUrl(url: string): Promise<string> {
         const base64 = Buffer.from(buf).toString('base64');
         return `data:${mime};base64,${base64}`;
     } catch {
-        return url; // fallback to original if fetch fails
+        return url;
     }
 }
 
@@ -27,14 +26,14 @@ export async function renderPosterToImage(
     style: 'minimal' | 'bold' | 'lifestyle',
     params: PosterTemplateParams
 ): Promise<Buffer> {
-    // Fetch font data — we load Inter from Google Fonts CDN at render time
+    // Load fonts at render time (Vercel edge-compatible approach)
     const [interRegular, interBold, interBlack] = await Promise.all([
         fetchFont('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff'),
         fetchFont('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff'),
         fetchFont('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff'),
     ]);
 
-    // Pre-fetch photo and logo as data URLs so Satori can embed them
+    // Pre-fetch images as base64 data URLs
     const [photoDataUrl, logoDataUrl] = await Promise.all([
         params.photoUrl ? toDataUrl(params.photoUrl) : Promise.resolve(''),
         params.logoUrl ? toDataUrl(params.logoUrl) : Promise.resolve(''),
@@ -46,13 +45,13 @@ export async function renderPosterToImage(
         logoUrl: logoDataUrl || undefined,
     };
 
-    // Pick the right satori element tree
+    // Pick the Satori element tree for this style
     let element: React.ReactNode;
     if (style === 'minimal') element = buildMinimalCleanSatori(enrichedParams);
     else if (style === 'bold') element = buildBoldImpactSatori(enrichedParams);
     else element = buildLifestyleFrameSatori(enrichedParams);
 
-    // Render to SVG using Satori
+    // Render to SVG string via Satori
     const svg = await satori(element as any, {
         width: 1080,
         height: 1080,
@@ -63,12 +62,13 @@ export async function renderPosterToImage(
         ],
     });
 
-    // Convert SVG → PNG using resvg
-    const resvg = new Resvg(svg, {
-        fitTo: { mode: 'width', value: 1080 },
-    });
-    const pngData = resvg.render();
-    return Buffer.from(pngData.asPng());
+    // Convert SVG → PNG using sharp (cross-platform, Vercel-native, no native binaries)
+    const pngBuffer = await sharp(Buffer.from(svg))
+        .resize(1080, 1080)
+        .png()
+        .toBuffer();
+
+    return pngBuffer;
 }
 
 export async function uploadPosterToSupabase(
