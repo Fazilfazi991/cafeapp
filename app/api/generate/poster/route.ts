@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { enhanceFoodPhoto } from '@/lib/gemini'
+import { generateAllThreeStyles } from '@/lib/gemini'
 import { renderPosterToImage, uploadPosterToSupabase } from '@/lib/poster-renderer'
 
 export async function POST(req: Request) {
@@ -42,12 +42,45 @@ export async function POST(req: Request) {
             font_style: 'modern'
         }
 
-        // STEP 1 — Enhance photo with Gemini Flash (graceful fallback if it fails)
-        const enhancedPhotoUrl = await enhanceFoodPhoto(imageUrl)
+        // Shared params for both Gemini and fallback
+        const sharedParams = {
+            photoUrl: imageUrl,
+            logoUrl: brand.logo_url || undefined,
+            businessName: restaurant.name,
+            businessType: restaurant.cuisine_type || 'restaurant',
+            customText: promotionalText || '',
+            phone: restaurant.phone || '',
+            website: restaurant.website || restaurant.email || '',
+            primaryColor: brand.primary_color || '#FF6B35',
+            secondaryColor: brand.secondary_color || '#FFFFFF',
+            tone: 'professional',
+            restaurantId: restaurant.id,
+        }
 
-        // STEP 2 — Shared template params
+        // ═══════════════════════════════════════════════════════════════════
+        // PRIMARY: Generate with Gemini Pro Image
+        // ═══════════════════════════════════════════════════════════════════
+        try {
+            console.log('[POSTER] Starting Gemini image generation...')
+            const posters = await generateAllThreeStyles(sharedParams)
+            console.log('[POSTER] Gemini generation successful!')
+
+            return NextResponse.json({
+                success: true,
+                method: 'gemini',
+                posters,
+            })
+        } catch (geminiError: any) {
+            console.error('[POSTER] Gemini failed, falling back to HTML:', geminiError?.message)
+        }
+
+        // ═══════════════════════════════════════════════════════════════════
+        // FALLBACK: Generate with HTML/Satori templates
+        // ═══════════════════════════════════════════════════════════════════
+        console.log('[POSTER] Using HTML/Satori fallback...')
+
         const templateParams = {
-            photoUrl: enhancedPhotoUrl,
+            photoUrl: imageUrl,
             businessName: restaurant.name,
             tagline: restaurant.cuisine_type || '',
             customText: promotionalText || '',
@@ -59,14 +92,12 @@ export async function POST(req: Request) {
             fontStyle: brand.font_style || 'modern',
         }
 
-        // STEP 3 — Render all 3 templates in parallel using Satori (no Chrome needed)
         const [minimalBuffer, boldBuffer, lifestyleBuffer] = await Promise.all([
             renderPosterToImage('minimal', templateParams),
             renderPosterToImage('bold', templateParams),
             renderPosterToImage('lifestyle', templateParams),
         ])
 
-        // STEP 4 — Upload all 3 to Supabase Storage
         const [minimalUrl, boldUrl, lifestyleUrl] = await Promise.all([
             uploadPosterToSupabase(minimalBuffer, restaurant.id, 'minimal'),
             uploadPosterToSupabase(boldBuffer, restaurant.id, 'bold'),
@@ -74,11 +105,13 @@ export async function POST(req: Request) {
         ])
 
         return NextResponse.json({
+            success: true,
+            method: 'html_fallback',
             posters: {
                 minimal: minimalUrl,
                 bold: boldUrl,
                 lifestyle: lifestyleUrl,
-            }
+            },
         })
 
     } catch (error: any) {

@@ -81,7 +81,7 @@ export default function CreatePostPage() {
                 if (!res.ok) throw new Error(videoRes.error || text)
                 videoBrief = videoRes.brief
             } else {
-                setGenerationProgress('Enhancing photo and generating styles...')
+                setGenerationProgress('✨ Generating with Gemini AI...')
                 const posterRes = await fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -335,7 +335,7 @@ export default function CreatePostPage() {
                         >
                             {isGenerating ? (
                                 <>
-                                    <div className="flex items-center gap-2 mb-0.5"><Loader2 className="animate-spin" size={16} /> <span className="text-sm">Generating Magic...</span></div>
+                                    <div className="flex items-center gap-2 mb-0.5"><Loader2 className="animate-spin" size={16} /> <span className="text-sm">Creating with AI...</span></div>
                                     <span className="text-[10px] text-gray-400 font-normal tracking-wider uppercase">{generationProgress}</span>
                                 </>
                             ) : (

@@ -1,12 +1,15 @@
 import satori from 'satori';
 import sharp from 'sharp';
+import fs from 'fs';
+import path from 'path';
 import { createClient } from '@/lib/supabase-server';
 import { PosterTemplateParams, buildMinimalCleanSatori, buildBoldImpactSatori, buildLifestyleFrameSatori } from './poster-templates';
 
-// Fetch a font as ArrayBuffer for Satori
-async function fetchFont(url: string): Promise<ArrayBuffer> {
-    const res = await fetch(url);
-    return res.arrayBuffer();
+// Read Inter font from the locally bundled @fontsource/inter package
+// (Google Fonts CDN blocks server-side requests and returns HTML)
+function loadFont(weight: 400 | 700 | 900): Buffer {
+    const fontPath = path.join(process.cwd(), 'node_modules', '@fontsource', 'inter', 'files', `inter-latin-${weight}-normal.woff`);
+    return fs.readFileSync(fontPath);
 }
 
 // Convert a remote URL to a base64 data URL so Satori can embed it inline
@@ -26,12 +29,10 @@ export async function renderPosterToImage(
     style: 'minimal' | 'bold' | 'lifestyle',
     params: PosterTemplateParams
 ): Promise<Buffer> {
-    // Load fonts at render time (Vercel edge-compatible approach)
-    const [interRegular, interBold, interBlack] = await Promise.all([
-        fetchFont('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuLyfAZ9hiJ-Ek-_EeA.woff'),
-        fetchFont('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuI6fAZ9hiJ-Ek-_EeA.woff'),
-        fetchFont('https://fonts.gstatic.com/s/inter/v13/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuFuYAZ9hiJ-Ek-_EeA.woff'),
-    ]);
+    // Load fonts from disk (synchronous — no network request)
+    const interRegular = loadFont(400);
+    const interBold = loadFont(700);
+    const interBlack = loadFont(900);
 
     // Pre-fetch images as base64 data URLs
     const [photoDataUrl, logoDataUrl] = await Promise.all([
