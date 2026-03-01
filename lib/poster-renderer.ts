@@ -7,52 +7,52 @@ export async function renderPosterToImage(
     format: 'square' | 'story' = 'square'
 ): Promise<Buffer> {
     const isLocal = process.env.NODE_ENV === 'development';
+    const width = 1080;
+    const height = format === 'square' ? 1080 : 1920;
 
     const browser = await puppeteer.launch({
-        args: isLocal ? puppeteer.defaultArgs() : (chromium as any).args,
-        defaultViewport: isLocal ? { width: 1080, height: 1080 } : (chromium as any).defaultViewport,
+        args: isLocal
+            ? ['--no-sandbox', '--disable-setuid-sandbox']
+            : (chromium as any).args,
+        defaultViewport: { width, height },
         executablePath: isLocal
-            ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' // Default Windows Path, change if needed
+            ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'
             : await chromium.executablePath(),
-        headless: isLocal ? true : (chromium as any).headless,
+        headless: true,
     });
 
     const page = await browser.newPage();
 
-    // Set viewport explicitly to trigger right sizing
-    await page.setViewport({
-        width: format === 'square' ? 1080 : 1080,
-        height: format === 'square' ? 1080 : 1920
-    });
+    // Must set viewport before content to ensure correct layout calculation
+    await page.setViewport({ width, height, deviceScaleFactor: 1 });
 
-    await page.setContent(html);
+    // Load the full HTML document and wait for ALL network requests to settle
+    // (fonts, images from Supabase URLs etc.)
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 30000 });
 
-    // Wait for images to load correctly (the logo and photoUrl)
-    await page.waitForSelector('img').catch(() => { }); // catch in case there are no images
+    // Extra safety: wait for all <img> tags to finish loading
     await page.evaluate(() => {
+        const imgs = Array.from(document.images);
+        const pending = imgs.filter(img => !img.complete);
+        if (pending.length === 0) return Promise.resolve();
         return Promise.all(
-            Array.from(document.images)
-                .filter(img => !img.complete)
-                .map(img => new Promise(resolve => {
-                    img.onload = img.onerror = resolve;
-                }))
+            pending.map(img =>
+                new Promise<void>(resolve => {
+                    img.onload = () => resolve();
+                    img.onerror = () => resolve(); // don't hang on broken images
+                })
+            )
         );
     });
 
-    // We take the screenshot directly of the viewport
+    // Screenshot exactly the poster dimensions
     const buffer = await page.screenshot({
         type: 'png',
-        clip: {
-            x: 0,
-            y: 0,
-            width: format === 'square' ? 1080 : 1080,
-            height: format === 'square' ? 1080 : 1920
-        }
+        clip: { x: 0, y: 0, width, height },
     });
 
     await browser.close();
 
-    // The result from page.screenshot is a Uint8Array. Buffer.from handles it safely.
     return Buffer.from(buffer);
 }
 
@@ -65,8 +65,8 @@ export async function uploadPosterToSupabase(
     const timestamp = Date.now();
     const filename = `posters/${restaurantId}/${timestamp}-${templateName}.png`;
 
-    const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('media') // reusing the media bucket (it contains posters)
+    const { error: uploadError } = await supabase.storage
+        .from('media')
         .upload(filename, buffer, {
             contentType: 'image/png',
             upsert: true
