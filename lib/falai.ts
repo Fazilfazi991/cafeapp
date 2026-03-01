@@ -15,7 +15,7 @@ export async function generatePoster(params: {
     caption: string,
     style: 'minimal' | 'bold' | 'lifestyle'
 }): Promise<string> {
-    
+
     const builtPrompt = buildPosterPrompt({
         imageUrl: params.imageUrl,
         businessName: params.businessName,
@@ -27,22 +27,27 @@ export async function generatePoster(params: {
         style: params.style
     });
 
-    const result: any = await fal.subscribe("fal-ai/flux/schnell", {
-        input: {
-            prompt: builtPrompt,
-            image_url: params.imageUrl,
-            image_size: "square_hd",
-            num_inference_steps: 28,
-            guidance_scale: 3.5,
-            num_images: 1,
-            enable_safety_checker: true
-        } as any,
-        pollInterval: 2000, 
-    });
+    let result: any;
+    try {
+        result = await fal.subscribe("fal-ai/flux/schnell", {
+            input: {
+                prompt: builtPrompt,
+                image_url: params.imageUrl,
+                image_size: "square_hd",
+                num_inference_steps: 28,
+                guidance_scale: 3.5,
+                num_images: 1,
+                enable_safety_checker: true
+            } as any,
+            pollInterval: 2000,
+        });
+    } catch (err: any) {
+        throw new Error(`[FAL_AI_FLUX_ERROR] ${err.message} - ${JSON.stringify(err)}`);
+    }
 
     const data = result.data || result; // Handle both SDK versions
     if (!data.images || data.images.length === 0) {
-        throw new Error("Fal.ai generation failed to return an image.");
+        throw new Error("[FAL_AI_FLUX_ERROR] Fal.ai generation failed to return an image.");
     }
 
     return data.images[0].url;
@@ -82,17 +87,22 @@ export async function removeBackground(imageUrl: string): Promise<string> {
 }
 
 export async function enhancePhoto(imageUrl: string): Promise<string> {
-    const result: any = await fal.subscribe("fal-ai/clarity-upscaler", {
-        input: { 
-            image_url: imageUrl,
-            scale: 2,
-            creativity: 0.3
-        } as any
-    });
+    let result: any;
+    try {
+        result = await fal.subscribe("fal-ai/clarity-upscaler", {
+            input: {
+                image_url: imageUrl,
+                scale: 2,
+                creativity: 0.3
+            } as any
+        });
+    } catch (err: any) {
+        throw new Error(`[FAL_AI_ENHANCE_ERROR] ${err.message} - ${JSON.stringify(err)}`);
+    }
 
     const data = result.data || result;
     if (!data.image?.url) {
-        throw new Error("Failed to enhance photo.");
+        throw new Error("[FAL_AI_ENHANCE_ERROR] Failed to enhance photo - no url returned.");
     }
 
     return data.image.url;
