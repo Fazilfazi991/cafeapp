@@ -36,24 +36,32 @@ export default function LogoUploader({
             const fileName = `logo_${restaurantId}_${Date.now()}.${fileExt}`
             const filePath = `${restaurantId}/${fileName}`
 
-            const { error: uploadError } = await supabase.storage
-                .from('brand_assets') // Ensure this bucket exists or use 'media'
-                .upload(filePath, file, { upsert: true })
+            // Fix for Supabase Storage SDK stripping tokens/headers: use explicit fetch
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+            const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-            if (uploadError) {
-                // If brand_assets doesn't exist, try falling back to 'media' which we know works
-                const { error: fallbackError } = await supabase.storage
-                    .from('media')
-                    .upload(filePath, file, { upsert: true })
+            const { data: { session } } = await supabase.auth.getSession()
+            const token = session?.access_token || anonKey
 
-                if (fallbackError) throw fallbackError;
+            const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/media/${filePath}`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'apiKey': anonKey as string,
+                    'Content-Type': file.type,
+                    'x-upsert': 'true' // Allow overwriting same file name
+                },
+                body: file
+            });
 
-                const { data } = supabase.storage.from('media').getPublicUrl(filePath)
-                setLogoUrl(data.publicUrl)
-            } else {
-                const { data } = supabase.storage.from('brand_assets').getPublicUrl(filePath)
-                setLogoUrl(data.publicUrl)
+            if (!uploadRes.ok) {
+                const errorText = await uploadRes.text();
+                throw new Error(`Upload Failed: ${errorText}`);
             }
+
+            const { data } = supabase.storage.from('media').getPublicUrl(filePath)
+            setLogoUrl(data.publicUrl)
+
         } catch (err: any) {
             console.error('Logo upload error:', err)
             setError(err.message || 'Failed to upload logo.')
