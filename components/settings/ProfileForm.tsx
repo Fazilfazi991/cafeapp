@@ -21,7 +21,7 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
 
     return (
         <div className="bg-white rounded-xl border p-6 shadow-sm">
-            <h2 className="text-lg font-bold mb-4">Business Profile</h2>
+            <h2 className="text-lg font-bold mb-4">Restaurant Profile</h2>
             <form action={formAction} className="flex flex-col gap-4 max-w-md">
                 <input type="hidden" name="user_id" value={restaurant.user_id} />
                 <input type="hidden" name="restaurant_id" value={restaurant.id} />
@@ -32,7 +32,7 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
                 />
 
                 <div>
-                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Name</label>
+                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Restaurant Name</label>
                     <input
                         name="name"
                         defaultValue={restaurant.name}
@@ -73,7 +73,7 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
                 </div>
 
                 <div>
-                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Address</label>
+                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Restaurant Address</label>
                     <textarea
                         name="address"
                         defaultValue={restaurant.address || ''}
@@ -86,20 +86,21 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
 
                 <div className="grid grid-cols-2 gap-4">
                     <div>
-                        <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Business Type</label>
+                        <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Cuisine Type</label>
                         <select
-                            name="business_type"
-                            defaultValue={restaurant.business_type || 'restaurant'}
+                            name="cuisine_type"
+                            defaultValue={restaurant.cuisine_type || ''}
                             className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
                         >
-                            <option value="restaurant">Restaurant / Cafe</option>
-                            <option value="salon">Salon / Spa</option>
-                            <option value="gym">Gym / Fitness</option>
-                            <option value="retail">Retail Store</option>
-                            <option value="real_estate">Real Estate</option>
-                            <option value="medical">Medical / Clinic</option>
-                            <option value="education">Education</option>
-                            <option value="other">Other Business</option>
+                            <option value="Arabic">Arabic</option>
+                            <option value="Indian">Indian</option>
+                            <option value="Asian">Asian</option>
+                            <option value="American">American</option>
+                            <option value="Italian">Italian</option>
+                            <option value="Mediterranean">Mediterranean</option>
+                            <option value="Fast Food">Fast Food</option>
+                            <option value="Cafe & Bakery">Cafe & Bakery</option>
+                            <option value="Other">Other</option>
                         </select>
                     </div>
 

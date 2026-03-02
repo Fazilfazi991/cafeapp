@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase-server'
-import { generateAllThreeStyles } from '@/lib/gemini'
+import { generateAllPosters } from '@/lib/gemini'
 
 export async function POST(req: Request) {
     try {
@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { imageUrl, promotionalText } = body
+        const { imageUrl, promotionalText, customText } = body
 
         if (!imageUrl) {
             return NextResponse.json({ error: 'Missing image URL' }, { status: 400 })
@@ -21,7 +21,7 @@ export async function POST(req: Request) {
         // Fetch restaurant + brand settings
         const { data: restaurants, error: fetchError } = await supabase
             .from('restaurants')
-            .select('id, name, cuisine_type, phone, email, website, brand_settings(primary_color, secondary_color, logo_url, font_style)')
+            .select('id, name, cuisine_type, phone, email, website, business_type, tone_of_voice, brand_settings(primary_color, secondary_color, logo_url, font_style)')
             .eq('user_id', user.id)
             .limit(1)
 
@@ -41,26 +41,23 @@ export async function POST(req: Request) {
             font_style: 'modern'
         }
 
-        const geminiParams = {
-            photoUrl: imageUrl,
-            logoUrl: brand.logo_url || undefined,
-            businessName: restaurant.name,
-            businessType: restaurant.cuisine_type || 'restaurant',
-            customText: promotionalText || '',
-            phone: restaurant.phone || '',
-            website: restaurant.website || restaurant.email || '',
-            primaryColor: brand.primary_color || '#FF6B35',
-            secondaryColor: brand.secondary_color || '#FFFFFF',
-            tone: 'professional',
-            restaurantId: restaurant.id,
-        }
-
         // ═══════════════════════════════════════════════════════════════════
         // PRIMARY: Generate with Gemini Pro Image
         // ═══════════════════════════════════════════════════════════════════
         try {
             console.log('[POSTER] Starting Gemini image generation...')
-            const posters = await generateAllThreeStyles(geminiParams)
+            const posters = await generateAllPosters({
+                photoUrl: imageUrl,
+                logoUrl: brand.logo_url || undefined,
+                businessName: restaurant.name,
+                businessType: restaurant.business_type || restaurant.cuisine_type || 'restaurant',
+                customText: promotionalText || customText || restaurant.name,
+                phone: restaurant.phone || '',
+                website: restaurant.website || '',
+                primaryColor: brand.primary_color || '#FF6B35',
+                tone: restaurant.tone_of_voice || 'casual',
+                restaurantId: restaurant.id
+            })
             console.log('[POSTER] Gemini generation successful!')
 
             return NextResponse.json({

@@ -411,7 +411,7 @@ export default function CreatePostPage() {
                     <div className="flex-1 bg-gray-50 rounded-xl overflow-hidden border flex flex-col relative max-w-[400px] mx-auto w-full shadow-inner">
                         <div className="h-14 bg-white border-b flex items-center px-4 gap-3 shrink-0">
                             <div className="w-8 h-8 rounded-full bg-gray-200"></div>
-                            <div className="font-bold text-sm">Your Business</div>
+                            <div className="font-bold text-sm">Your Restaurant</div>
                         </div>
 
                         <div className="aspect-square bg-gray-100 flex items-center justify-center shrink-0 w-full overflow-hidden border-b relative">

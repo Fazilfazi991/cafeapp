@@ -17,7 +17,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
     const website = formData.get('website') as string
     const phone = formData.get('phone') as string
     const address = formData.get('address') as string
-    const business_type = formData.get('business_type') as string
+    const cuisine_type = formData.get('cuisine_type') as string
     const font_style = formData.get('font_style') as string
     const email = formData.get('email') as string
     const logo_url = formData.get('logo_url') as string
@@ -27,7 +27,7 @@ export async function updateProfile(prevState: any, formData: FormData) {
         // Update restaurants table
         const { error: restError } = await supabase
             .from('restaurants')
-            .update({ name, website, phone, address, business_type, email })
+            .update({ name, website, phone, address, business_type: 'restaurant', cuisine_type, email })
             .eq('user_id', user_id)
 
         if (restError) throw new Error(`Restaurant Update Error: ${restError.message} (Code: ${restError.code})`)

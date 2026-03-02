@@ -7,39 +7,13 @@ export function buildCaptionPrompt(params: {
     platform: 'instagram' | 'facebook' | 'gmb',
     contentType: string
 }): string {
-    const { businessName, businessType, cuisine, tone, city, platform } = params;
-    let basePrompt = '';
+    const { businessName, cuisine, tone, city, platform } = params;
 
-    // Business Type Prompts
-    if (businessType === 'restaurant' || businessType === 'cafe') {
-        basePrompt = `You are a social media manager for ${businessName}, a ${cuisine || 'quality'} restaurant in ${city}. You write mouth-watering, engaging captions that make people hungry and want to visit immediately.`;
-    } else if (businessType === 'salon' || businessType === 'spa') {
-        basePrompt = `You are a social media manager for ${businessName}, a premium salon and spa in ${city}. You write elegant, aspirational captions that make people want to treat themselves.`;
-    } else if (businessType === 'gym' || businessType === 'fitness') {
-        basePrompt = `You are a social media manager for ${businessName}, a fitness center in ${city}. You write motivating, energetic captions that inspire people to get active.`;
-    } else if (businessType === 'retail') {
-        basePrompt = `You are a social media manager for ${businessName}, a retail store in ${city}. You write compelling captions that showcase products and drive purchase decisions.`;
-    } else if (businessType === 'real_estate') {
-        basePrompt = `You are a social media manager for ${businessName}, a real estate company in ${city}. You write professional captions that build trust and showcase properties.`;
-    } else if (businessType === 'medical' || businessType === 'clinic') {
-        basePrompt = `You are a social media manager for ${businessName}, a medical and wellness clinic in ${city}. You write caring, trustworthy captions that inform and reassure patients.`;
-    } else if (businessType === 'education') {
-        basePrompt = `You are a social media manager for ${businessName}, an educational institution in ${city}. You write inspiring captions that motivate learning.`;
-    } else {
-        basePrompt = `You are a social media manager for ${businessName}, a business in ${city}. You write engaging social media captions.`;
-    }
+    const finalCuisine = cuisine || params.businessType || 'restaurant';
+    const basePrompt = `You are a social media manager for ${businessName}, a ${finalCuisine} restaurant in ${city} with a ${tone} voice. Write mouth-watering captions that make people hungry and want to visit immediately.`;
 
-    // Tone Modifiers
-    let tonePrompt = '';
-    if (tone === 'casual') {
-        tonePrompt = "\nUse friendly, conversational language. Short sentences. Relatable.";
-    } else if (tone === 'fun') {
-        tonePrompt = "\nUse playful language, relevant emojis, exciting punctuation! Make it entertaining.";
-    } else if (tone === 'professional') {
-        tonePrompt = "\nUse polished, sophisticated language. Formal but approachable. No slang.";
-    } else if (tone === 'bold') {
-        tonePrompt = "\nUse powerful, direct language. Strong statements. Action-oriented words.";
-    }
+    // Tone Modifiers (removed since it's now in the base prompt instruction, but we can keep subtle tweaks or let the base handle it)
+    // Actually, user requested the base prompt verbatim. We will omit the explicit tone appends and just formatting.
 
     // Platform Modifiers
     let platformPrompt = '';
@@ -48,11 +22,11 @@ export function buildCaptionPrompt(params: {
     } else if (platform === 'facebook') {
         platformPrompt = "\nWrite 3 caption options. Each under 100 words. Conversational tone. No hashtags. End with a question to encourage comments.";
     } else if (platform === 'gmb') {
-        platformPrompt = `\nWrite 3 caption options. Each under 60 words. Mention ${city}. SEO-friendly. No hashtags. Sound like a local business update. Include a call to action.`;
+        return `Write a short Google My Business post for ${businessName}, a ${finalCuisine} restaurant in ${city}. Mention the location, sound like a local restaurant update, under 60 words, no hashtags, include a call to action.\nReturn as valid JSON only:\n{\n  "option1": "caption here",\n  "option2": "caption here",\n  "option3": "caption here"\n}`;
     }
 
     // Format Instruction
     const formatInstruction = "\nReturn as valid JSON only:\n{\n  \"option1\": \"caption here\",\n  \"option2\": \"caption here\",\n  \"option3\": \"caption here\"\n}";
 
-    return basePrompt + tonePrompt + platformPrompt + formatInstruction;
+    return basePrompt + platformPrompt + formatInstruction;
 }
