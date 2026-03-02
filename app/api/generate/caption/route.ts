@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json()
-        const { platform, postType, extraContext, contentType } = body
+        const { platform, postType, extraContext, contentType, dishName, dishDescription } = body
 
         if (!platform || !postType) {
             return NextResponse.json({ error: 'Missing platform or postType' }, { status: 400 })
@@ -30,16 +30,16 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 })
         }
 
-        const captions = await generateCaptions(
-            restaurant.name,
-            restaurant.business_type || restaurant.cuisine_type || 'Business',
-            restaurant.city || '',
-            restaurant.tone_of_voice || 'casual',
-            platform,
-            postType,
-            extraContext,
-            contentType
-        )
+        const captions = await generateCaptions({
+            restaurantName: restaurant.name,
+            cuisineType: restaurant.cuisine_type || restaurant.business_type || 'Restaurant',
+            city: restaurant.city || '',
+            tone: restaurant.tone_of_voice || 'casual',
+            dishName: dishName || 'our signature dish',
+            dishDescription: dishDescription || 'a delicious and mouth-watering meal',
+            platform: platform,
+            extraContext: extraContext
+        })
 
         return NextResponse.json({ captions })
 

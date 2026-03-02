@@ -1,32 +1,26 @@
 export function buildCaptionPrompt(params: {
-    businessName: string,
-    businessType: string,
-    cuisine?: string,
-    tone: string,
+    restaurantName: string,
+    cuisineType: string,
     city: string,
-    platform: 'instagram' | 'facebook' | 'gmb',
-    contentType: string
+    tone: string,
+    dishName: string,
+    dishDescription: string,
+    platform: 'instagram' | 'facebook' | 'gmb'
 }): string {
-    const { businessName, cuisine, tone, city, platform } = params;
+    const { restaurantName, cuisineType, city, tone, dishName, dishDescription, platform } = params;
 
-    const finalCuisine = cuisine || params.businessType || 'restaurant';
-    const basePrompt = `You are a social media manager for ${businessName}, a ${finalCuisine} restaurant in ${city} with a ${tone} voice. Write mouth-watering captions that make people hungry and want to visit immediately.`;
+    let basePrompt = `You are a social media manager for ${restaurantName}, a ${cuisineType} restaurant in ${city} with a ${tone} voice.\n\n`;
+    basePrompt += `The photo shows: ${dishName}\nAbout this dish: ${dishDescription}\n\n`;
 
-    // Tone Modifiers (removed since it's now in the base prompt instruction, but we can keep subtle tweaks or let the base handle it)
-    // Actually, user requested the base prompt verbatim. We will omit the explicit tone appends and just formatting.
-
-    // Platform Modifiers
-    let platformPrompt = '';
     if (platform === 'instagram') {
-        platformPrompt = "\nWrite 3 caption options. Each under 150 words. Include 5-8 relevant hashtags. Include 2-3 emojis. End with a call to action.";
+        basePrompt += `Write 3 Instagram captions specifically about ${dishName}. Mention the dish by name in at least 2 of the 3 captions. Make people hungry and want to visit the restaurant to try it.\nInclude 5-7 relevant food hashtags.\nInclude #${city.replace(/\s+/g, '')}Food #${city.replace(/\s+/g, '')}Eats hashtags.\nEach caption under 150 words.\n\n`;
     } else if (platform === 'facebook') {
-        platformPrompt = "\nWrite 3 caption options. Each under 100 words. Conversational tone. No hashtags. End with a question to encourage comments.";
+        basePrompt += `Write 3 Facebook caption options specifically about ${dishName}. Each under 100 words. Conversational tone. No hashtags. End with a question to encourage comments.\n\n`;
     } else if (platform === 'gmb') {
-        return `Write a short Google My Business post for ${businessName}, a ${finalCuisine} restaurant in ${city}. Mention the location, sound like a local restaurant update, under 60 words, no hashtags, include a call to action.\nReturn as valid JSON only:\n{\n  "option1": "caption here",\n  "option2": "caption here",\n  "option3": "caption here"\n}`;
+        basePrompt += `Write a short Google My Business post specifically about ${dishName}. Mention the location (${city}), sound like a local restaurant update, under 60 words, no hashtags, include a call to action to come try it.\n\n`;
     }
 
-    // Format Instruction
-    const formatInstruction = "\nReturn as valid JSON only:\n{\n  \"option1\": \"caption here\",\n  \"option2\": \"caption here\",\n  \"option3\": \"caption here\"\n}";
+    const formatInstruction = `Return as valid JSON only:\n{\n  "option1": "caption here",\n  "option2": "caption here",\n  "option3": "caption here"\n}`;
 
-    return basePrompt + platformPrompt + formatInstruction;
+    return basePrompt + formatInstruction;
 }

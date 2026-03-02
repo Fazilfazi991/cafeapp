@@ -7,23 +7,26 @@ const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY || 'dummy_key',
 });
 
-export async function generateCaptions(
-    businessName: string,
-    businessType: string,
+export async function generateCaptions(params: {
+    restaurantName: string,
+    cuisineType: string,
     city: string,
-    toneOfVoice: string,
+    tone: string,
+    dishName: string,
+    dishDescription: string,
     platform: 'instagram' | 'facebook' | 'gmb',
-    postType: string,
-    extraContext?: string,
-    contentType?: string
-) {
+    extraContext?: string
+}) {
+    const { restaurantName, cuisineType, city, tone, dishName, dishDescription, platform, extraContext } = params;
+
     const systemPrompt = buildCaptionPrompt({
-        businessName,
-        businessType,
+        restaurantName,
+        cuisineType,
         city,
-        tone: toneOfVoice,
-        platform,
-        contentType: contentType || 'Promotional Post'
+        tone: tone,
+        dishName,
+        dishDescription,
+        platform
     });
 
     const finalPrompt = extraContext ? `${systemPrompt}\n\nThe content you are writing for is a video with this description/brief: "${extraContext}"` : systemPrompt;

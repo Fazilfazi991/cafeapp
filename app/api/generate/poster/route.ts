@@ -1,91 +1,147 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase-server'
-import { generateAllPosters } from '@/lib/gemini'
+import { NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase-server';
+import { analyzeFoodPhoto } from '@/lib/gemini';
+import { generateCaptions } from '@/lib/openai';
+import { renderHTMLToPNG, uploadToStorage } from '@/lib/poster-renderer';
+import { getMinimalTemplate, getBoldTemplate, getLifestyleTemplate, PosterTemplateData } from '@/lib/poster-templates';
 
 export async function POST(req: Request) {
     try {
-        const supabase = createClient()
-        const { data: { user } } = await supabase.auth.getUser()
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await req.json()
-        const { imageUrl, promotionalText, customText } = body
+        const body = await req.json();
+        const { imageUrl, customText, dishName: providedDishName } = body;
 
         if (!imageUrl) {
-            return NextResponse.json({ error: 'Missing image URL' }, { status: 400 })
+            return NextResponse.json({ error: 'Missing image URL' }, { status: 400 });
         }
 
-        // Fetch restaurant + brand settings
-        const { data: restaurants, error: fetchError } = await supabase
+        // STEP 1 — Get all restaurant data
+        const { data: restaurant, error: fetchError } = await supabase
             .from('restaurants')
-            .select('id, name, cuisine_type, phone, email, website, business_type, tone_of_voice, brand_settings(primary_color, secondary_color, logo_url, font_style)')
+            .select('*')
             .eq('user_id', user.id)
-            .limit(1)
+            .single();
 
-        if (fetchError) {
-            console.error('[DATABASE_FETCH_ERROR]', fetchError)
+        if (fetchError || !restaurant) {
+            return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
         }
 
-        const restaurant = restaurants?.[0]
-        if (!restaurant) {
-            return NextResponse.json({ error: fetchError ? `DB Error: ${fetchError.message}` : 'Restaurant not found' }, { status: 404 })
+        const { data: brand } = await supabase
+            .from('brand_settings')
+            .select('*')
+            .eq('restaurant_id', restaurant.id)
+            .single();
+
+        // STEP 2 — Analyze photo with Gemini Vision (or use provided dishName)
+        console.log('Analyzing photo...');
+        let analysis: { dishName: string; description: string; ingredients: string[]; cuisine: string };
+
+        if (providedDishName?.trim()) {
+            analysis = {
+                dishName: providedDishName,
+                description: `A delicious serving of our signature ${providedDishName}.`,
+                ingredients: [],
+                cuisine: restaurant.cuisine_type || 'International'
+            };
+        } else {
+            analysis = await analyzeFoodPhoto(imageUrl);
         }
 
-        const brand = restaurant.brand_settings?.[0] || {
-            primary_color: '#FF6B35',
-            secondary_color: '#FFFFFF',
-            logo_url: '',
-            font_style: 'modern'
+        console.log('Dish identified:', analysis.dishName);
+
+        // STEP 3 — Generate captions using dish info
+        console.log('Generating captions...');
+        const captions = await generateCaptions({
+            restaurantName: restaurant.name || 'Our Restaurant',
+            cuisineType: restaurant.cuisine_type || restaurant.business_type || 'Restaurant',
+            city: restaurant.city || '',
+            tone: restaurant.tone_of_voice || 'casual',
+            dishName: analysis.dishName,
+            dishDescription: analysis.description,
+            platform: 'instagram'
+        });
+
+        // STEP 4 — Convert uploaded photo to base64
+        console.log('Fetching photo to Base64...');
+        const photoResp = await fetch(imageUrl);
+        if (!photoResp.ok) throw new Error('Failed to fetch the uploaded photo');
+        const photoBuffer = await photoResp.arrayBuffer();
+        const photoBase64 = Buffer.from(photoBuffer).toString('base64');
+
+        // STEP 5 — Convert logo to base64 if exists
+        let logoBase64 = null;
+        if (brand?.logo_url) {
+            console.log('Fetching logo to Base64...');
+            try {
+                const logoResp = await fetch(brand.logo_url);
+                if (logoResp.ok) {
+                    const logoBuffer = await logoResp.arrayBuffer();
+                    logoBase64 = Buffer.from(logoBuffer).toString('base64');
+                }
+            } catch (e) {
+                console.log('Logo fetch failed:', e);
+            }
         }
 
-        // ═══════════════════════════════════════════════════════════════════
-        // PRIMARY: Generate with Gemini Pro Image
-        // ═══════════════════════════════════════════════════════════════════
-        try {
-            console.log('[POSTER] Starting Gemini image generation...')
-            const posters = await generateAllPosters({
-                photoUrl: imageUrl,
-                logoUrl: brand.logo_url || undefined,
-                businessName: restaurant.name,
-                businessType: restaurant.business_type || restaurant.cuisine_type || 'restaurant',
-                customText: promotionalText || customText || restaurant.name,
-                phone: restaurant.phone || '',
-                website: restaurant.website || '',
-                primaryColor: brand.primary_color || '#FF6B35',
-                tone: restaurant.tone_of_voice || 'casual',
-                restaurantId: restaurant.id
-            })
-            console.log('[POSTER] Gemini generation successful!')
+        // STEP 6 — Build template data
+        const templateData: PosterTemplateData = {
+            photoBase64: photoBase64,
+            logoBase64: logoBase64 || null,
+            businessName: restaurant.name || '',
+            customText: customText || analysis.dishName,
+            phone: restaurant.phone || '',
+            website: restaurant.website || '',
+            primaryColor: brand?.primary_color || '#FF6B35',
+            secondaryColor: brand?.secondary_color || '#FFFFFF'
+        };
 
-            return NextResponse.json({
-                success: true,
-                method: 'gemini',
-                posters,
-            })
-        } catch (geminiError: any) {
-            require('fs').writeFileSync('gemini-err.txt', geminiError?.stack || geminiError?.message || String(geminiError))
-            console.error('[POSTER] Gemini failed:', geminiError?.message)
-        }
+        console.log('Template data summary:', {
+            hasPhoto: !!templateData.photoBase64,
+            hasLogo: !!templateData.logoBase64,
+            businessName: templateData.businessName,
+            customText: templateData.customText,
+            phone: templateData.phone,
+            website: templateData.website,
+            primaryColor: templateData.primaryColor
+        });
 
-        // ═══════════════════════════════════════════════════════════════════
-        // FALLBACK: Return the original uploaded image for all 3 styles
-        // ═══════════════════════════════════════════════════════════════════
-        console.log('[POSTER] Returning original image as fallback...')
+        // STEP 7 — Render 3 HTML templates with Puppeteer
+        console.log('Rendering HTML templates with Puppeteer...');
+        const [minBuf, boldBuf, lifeBuf] = await Promise.all([
+            renderHTMLToPNG(getMinimalTemplate(templateData)),
+            renderHTMLToPNG(getBoldTemplate(templateData)),
+            renderHTMLToPNG(getLifestyleTemplate(templateData))
+        ]);
+
+        // STEP 8 — Upload all 3 to Supabase Storage
+        console.log('Uploading posters to Supabase...');
+        const [minUrl, boldUrl, lifeUrl] = await Promise.all([
+            uploadToStorage(minBuf, restaurant.id, 'minimal'),
+            uploadToStorage(boldBuf, restaurant.id, 'bold'),
+            uploadToStorage(lifeBuf, restaurant.id, 'lifestyle')
+        ]);
+
+        // STEP 9 — Return everything
+        console.log('Complete! Returning data...');
         return NextResponse.json({
             success: true,
-            method: 'fallback',
+            dishName: analysis.dishName,
             posters: {
-                minimal: imageUrl,
-                bold: imageUrl,
-                lifestyle: imageUrl,
+                minimal: minUrl,
+                bold: boldUrl,
+                lifestyle: lifeUrl
             },
-        })
+            captions: captions
+        });
 
     } catch (error: any) {
-        console.error('[POSTER_GENERATION_ERROR]', error)
-        return NextResponse.json({ error: error.message || 'Failed to generate posters' }, { status: 500 })
+        console.error('[POSTER_GENERATION_ERROR]', error);
+        return NextResponse.json({ error: error.message || 'Failed to generate posters' }, { status: 500 });
     }
 }

@@ -36,8 +36,9 @@ export default function CreatePostPage() {
     const [contentType, setContentType] = useState<string>('Promotional Post')
     const [includeText, setIncludeText] = useState<boolean>(true)
     const [promotionalText, setPromotionalText] = useState<string>('')
+    const [dishName, setDishName] = useState('')
 
-    // Scheduling State
+    // Results state
     const [isScheduling, setIsScheduling] = useState(false)
     const [scheduledDate, setScheduledDate] = useState<string>('')
 
@@ -85,7 +86,7 @@ export default function CreatePostPage() {
                 const posterRes = await fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', includeText, promotionalText })
+                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', includeText, promotionalText, dishName })
                 })
                 const posterText = await posterRes.text()
                 let data;
@@ -94,6 +95,11 @@ export default function CreatePostPage() {
 
                 setPosters(data.posters)
                 setSelectedStyle('minimal')
+
+                // Use the dishName returned from Gemini analysis if user didn't provide one
+                if (data.dishName && !dishName) {
+                    setDishName(data.dishName);
+                }
             }
 
             setGenerationProgress('Writing captions...')
@@ -105,7 +111,8 @@ export default function CreatePostPage() {
                     platform: primaryPlatform,
                     postType: fileType,
                     extraContext: videoBrief,
-                    contentType: contentType
+                    contentType: contentType,
+                    dishName: dishName
                 })
             })
             const capText = await capRes.text()
@@ -124,7 +131,8 @@ export default function CreatePostPage() {
                         platform: 'gmb',
                         postType: fileType,
                         extraContext: videoBrief,
-                        contentType: contentType
+                        contentType: contentType,
+                        dishName: dishName
                     })
                 })
                 const gmbText = await gmbRes.text()
@@ -245,7 +253,7 @@ export default function CreatePostPage() {
                                     </div>
                                     <div>
                                         <p className="font-medium text-sm">Media uploaded successfully</p>
-                                        <button onClick={() => { setUploadedUrl(null); setStep(1); setPosters(null); setCaptions(null); setGmbCaption(null); }} className="text-xs text-blue-600 hover:underline">Change file</button>
+                                        <button onClick={() => { setUploadedUrl(null); setStep(1); setPosters(null); setCaptions(null); setGmbCaption(null); setDishName(''); }} className="text-xs text-blue-600 hover:underline">Change file</button>
                                     </div>
                                 </div>
                             </div>
@@ -324,6 +332,20 @@ export default function CreatePostPage() {
                                         className="w-full text-sm p-2 bg-white border border-gray-300 rounded focus:outline-none focus:border-[#FF6B35]"
                                     />
                                     <p className="text-[10px] text-gray-500 mt-1">Leave blank for generic aesthetic text, or type specific pricing/details for the AI to draw.</p>
+                                </div>
+                            )}
+
+                            {fileType === 'image' && (
+                                <div className="mt-2">
+                                    <label className="text-sm font-semibold text-gray-800 block mb-1">What dish is this? (Optional)</label>
+                                    <input
+                                        type="text"
+                                        placeholder='e.g. Crispy Samosa, Grilled Chicken, Chocolate Lava Cake'
+                                        value={dishName}
+                                        onChange={(e) => setDishName(e.target.value)}
+                                        className="w-full text-sm p-3 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-[#FF6B35] shadow-sm"
+                                    />
+                                    <p className="text-[11px] text-gray-500 mt-1">Leave blank and Gemini will automatically analyze the photo to detect the dish for you.</p>
                                 </div>
                             )}
                         </div>

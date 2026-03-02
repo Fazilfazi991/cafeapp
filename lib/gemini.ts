@@ -60,6 +60,52 @@ export async function enhanceFoodPhoto(imageUrl: string): Promise<string> {
   }
 }
 
+// ─── PHOTO ANALYSIS (Vision extraction) ───────────────────────────────────────
+export async function analyzeFoodPhoto(
+  imageUrl: string
+): Promise<{
+  dishName: string;
+  description: string;
+  ingredients: string[];
+  cuisine: string;
+}> {
+  try {
+    const imageRes = await fetch(imageUrl);
+    if (!imageRes.ok) throw new Error(`Failed to fetch image: ${imageRes.status}`);
+    const imageBuffer = await imageRes.arrayBuffer();
+    const mimeType = (imageRes.headers.get('content-type') || 'image/jpeg') as any;
+    const base64Image = Buffer.from(imageBuffer).toString('base64');
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-pro' });
+    const result = await model.generateContent([
+      { inlineData: { mimeType, data: base64Image } },
+      {
+        text: `Analyze this food photo and return ONLY a JSON object with no markdown:
+{
+  "dishName": "exact name of the dish",
+  "description": "appetizing 2 sentence description of how it looks and tastes",
+  "ingredients": ["main", "visible", "ingredients"],
+  "cuisine": "type of cuisine"
+}`,
+      },
+    ]);
+
+    const text = result.response.text();
+    const clean = text.replace(/```json/g, '').replace(/```/g, '').trim();
+    return JSON.parse(clean);
+  } catch (error: any) {
+    console.error('Gemini Vision Analysis Error:', error);
+    // Fallback if vision fails
+    return {
+      dishName: 'Delicious Dish',
+      description: 'A mouthwatering culinary creation prepared to perfection.',
+      ingredients: ['fresh ingredients'],
+      cuisine: 'International',
+    };
+  }
+}
+
+
 // ─── FULL POSTER GENERATION WITH GEMINI ─────────────────────────────────────
 
 export async function generatePosterWithGemini(
