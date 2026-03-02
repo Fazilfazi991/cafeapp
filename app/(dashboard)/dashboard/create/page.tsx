@@ -418,7 +418,7 @@ export default function CreatePostPage() {
                             {isGenerating ? (
                                 <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-10 gap-3">
                                     <Loader2 className="animate-spin text-[#FF6B35]" size={32} />
-                                    <span className="text-sm font-medium animate-pulse">Rendering fal.ai poster...</span>
+                                    <span className="text-sm font-medium animate-pulse">Rendering poster with Gemini...</span>
                                 </div>
                             ) : posters ? (
                                 <div className="w-full h-full relative">

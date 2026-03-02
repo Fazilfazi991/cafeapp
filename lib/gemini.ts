@@ -77,23 +77,7 @@ export async function generatePosterWithGemini(
     restaurantId: string
   }
 ): Promise<string> {
-  const photoResp = await fetch(params.photoUrl)
-  const photoBuffer = await photoResp.arrayBuffer()
-  const photoBase64 = Buffer.from(photoBuffer).toString('base64')
-  const photoMime = photoResp.headers.get('content-type') || 'image/jpeg'
-
-  let logoBase64: string | null = null
-  let logoMime = 'image/png'
-  if (params.logoUrl) {
-    try {
-      const logoResp = await fetch(params.logoUrl)
-      const logoBuffer = await logoResp.arrayBuffer()
-      logoBase64 = Buffer.from(logoBuffer).toString('base64')
-      logoMime = logoResp.headers.get('content-type') || 'image/png'
-    } catch (e) {
-      console.log('Logo fetch failed, skipping')
-    }
-  }
+  // No longer fetching photoUrl or logoUrl since gemini-2.5-flash-image generates posters from scratch based on text prompts.
 
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash-image', // Fixed model name
@@ -108,14 +92,9 @@ export async function generatePosterWithGemini(
     minimal: `
       ${basePrompt}
       
-      I am providing you with:
-      1. A food photo to use as background
-      ${logoBase64 ? '2. A business logo to place on the poster' : ''}
-      
       Design requirements:
-      - Use the provided photo as full background
+      - Clean minimal professional aesthetic
       - Add a dark gradient overlay on bottom 40%
-      - ${logoBase64 ? 'Place the logo in top-right corner inside a white rounded square with shadow' : ''}
       - Display "${params.customText}" as large 
         bold text in ${params.primaryColor} color
         in the lower portion of the image
@@ -126,7 +105,6 @@ export async function generatePosterWithGemini(
         Left: "${params.phone}"
         Right: "${params.website}"
         Both in white text
-      - Clean minimal professional aesthetic
       - No placeholder text, no Lorem ipsum
       - All text must be perfectly legible
     `,
@@ -134,15 +112,10 @@ export async function generatePosterWithGemini(
     bold: `
       ${basePrompt}
       
-      I am providing:
-      1. A food photo for the top section
-      ${logoBase64 ? '2. A business logo' : ''}
-      
       Design:
-      - Food photo fills top 58% of poster
+      - Vibrant, bold food photo composition fills top 58% of poster
       - Solid ${params.primaryColor} background 
         for bottom 42%
-      - ${logoBase64 ? 'Logo top-left corner on photo section, white rounded background' : ''}
       - "${params.customText}" as very large 
         white bold text in the color section
       - "${params.businessName}" smaller below 
@@ -157,13 +130,9 @@ export async function generatePosterWithGemini(
     lifestyle: `
       ${basePrompt}
       
-      I am providing:
-      1. A food photo for center placement
-      ${logoBase64 ? '2. A business logo' : ''}
-      
       Design:
       - Clean white/cream (#F8F8F6) background
-      - Food photo centered in a rounded rectangle 
+      - High quality food photo centered in a rounded rectangle 
         with subtle shadow, filling middle portion
       - Thin ${params.primaryColor} color bars 
         at very top and very bottom edges
@@ -171,7 +140,6 @@ export async function generatePosterWithGemini(
         in ${params.primaryColor} uppercase spaced
       - "${params.customText}" below photo 
         in dark charcoal bold text  
-      - ${logoBase64 ? 'Small logo top-right with light border' : ''}
       - "${params.phone}" and "${params.website}" 
         near bottom in gray
       - Premium editorial magazine aesthetic
@@ -180,26 +148,8 @@ export async function generatePosterWithGemini(
   }
 
   const parts: any[] = [
-    {
-      inlineData: {
-        mimeType: photoMime,
-        data: photoBase64
-      }
-    }
+    { text: stylePrompts[params.style] }
   ]
-
-  if (logoBase64) {
-    parts.push({
-      inlineData: {
-        mimeType: logoMime,
-        data: logoBase64
-      }
-    })
-  }
-
-  parts.push({
-    text: stylePrompts[params.style]
-  })
 
   const result = await model.generateContent({
     contents: [{
@@ -230,39 +180,10 @@ export async function generatePosterWithGemini(
 
   const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64')
 
-  const supabase = createClient()
-  const fileName = `posters/${params.restaurantId}/${Date.now()}-${params.style}.png`
-
-  // Using media bucket as it's the standard for this app based on earlier code
-  // We can switch to posters if required, but earlier code used 'media'
-  const { error: uploadError } = await supabase.storage
-    .from('posters')
-    .upload(fileName, imageBuffer, {
-      contentType: 'image/png',
-      upsert: true
-    })
-
-  if (uploadError) {
-    // try fallback to media bucket just in case someone didn't create 'posters'
-    const { error: mediaUploadError } = await supabase.storage
-      .from('media')
-      .upload(fileName, imageBuffer, {
-        contentType: 'image/png',
-        upsert: true
-      })
-
-    if (mediaUploadError) {
-      throw new Error(`Upload failed: ${uploadError.message} / ${mediaUploadError.message}`)
-    }
-    const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(fileName)
-    console.log('Poster generated (fallback bucket):', publicUrl)
-    return publicUrl
-  }
-
-  const { data: { publicUrl } } = supabase.storage.from('posters').getPublicUrl(fileName)
-
-  console.log('Poster generated:', publicUrl)
-  return publicUrl
+  // Instead of uploading to Supabase where we are hitting RLS errors without a service role key,
+  // we will return the image as a base64 Data URL so the frontend can display and use it directly.
+  const imageBase64 = imagePart.inlineData.data;
+  return `data:image/png;base64,${imageBase64}`
 }
 
 export async function generateAllPosters(
@@ -272,11 +193,10 @@ export async function generateAllPosters(
   bold: string
   lifestyle: string
 }> {
-  const [minimal, bold, lifestyle] = await Promise.all([
-    generatePosterWithGemini({ ...params, style: 'minimal' }),
-    generatePosterWithGemini({ ...params, style: 'bold' }),
-    generatePosterWithGemini({ ...params, style: 'lifestyle' })
-  ])
+  // Generate sequentially to avoid rate limits on the image model
+  const minimal = await generatePosterWithGemini({ ...params, style: 'minimal' })
+  const bold = await generatePosterWithGemini({ ...params, style: 'bold' })
+  const lifestyle = await generatePosterWithGemini({ ...params, style: 'lifestyle' })
 
   return { minimal, bold, lifestyle }
 }

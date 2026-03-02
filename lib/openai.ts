@@ -4,7 +4,7 @@ import { buildCaptionPrompt } from '@/lib/caption-prompt-builder';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 const openai = new OpenAI({
-    apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENAI_API_KEY || 'dummy_key',
 });
 
 export async function generateCaptions(
@@ -25,7 +25,7 @@ export async function generateCaptions(
         platform,
         contentType: contentType || 'Promotional Post'
     });
-    
+
     const finalPrompt = extraContext ? `${systemPrompt}\n\nThe content you are writing for is a video with this description/brief: "${extraContext}"` : systemPrompt;
 
     // 1. Try OpenAI First

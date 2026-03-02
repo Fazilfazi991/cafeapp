@@ -66,6 +66,7 @@ export async function POST(req: Request) {
                 posters,
             })
         } catch (geminiError: any) {
+            require('fs').writeFileSync('gemini-err.txt', geminiError?.stack || geminiError?.message || String(geminiError))
             console.error('[POSTER] Gemini failed:', geminiError?.message)
         }
 
