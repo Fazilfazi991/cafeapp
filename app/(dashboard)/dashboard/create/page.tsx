@@ -83,22 +83,29 @@ export default function CreatePostPage() {
                 videoBrief = videoRes.brief
             } else {
                 setGenerationProgress('✨ Generating with Gemini AI...')
-                const posterRes = await fetch('/api/generate/poster', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', customText, offerText, dishName })
-                })
-                const posterText = await posterRes.text()
-                let data;
-                try { data = JSON.parse(posterText) } catch (e) { throw new Error(posterText) }
-                if (!posterRes.ok) throw new Error(data.error || posterText)
+                try {
+                    const posterRes = await fetch('/api/generate/poster', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', customText, offerText, dishName })
+                    })
+                    const posterText = await posterRes.text()
+                    let data;
+                    try { data = JSON.parse(posterText) } catch (e) { throw new Error(posterText) }
+                    if (!posterRes.ok) throw new Error(data.error || posterText)
 
-                setPosters(data.posters)
-                setSelectedStyle('minimal')
+                    setPosters(data.posters)
+                    setSelectedStyle('minimal')
 
-                // Use the dishName returned from Gemini analysis if user didn't provide one
-                if (data.dishName && !dishName) {
-                    setDishName(data.dishName);
+                    // Use the dishName returned from Gemini analysis if user didn't provide one
+                    if (data.dishName && !dishName) {
+                        setDishName(data.dishName);
+                    }
+                } catch (posterErr: any) {
+                    console.error('[POSTER_GEN_BYPASS]', posterErr);
+                    // Fallback to the original image if AI poster generation fails
+                    setPosters({ minimal: uploadedUrl, bold: uploadedUrl, lifestyle: uploadedUrl });
+                    setSelectedStyle('minimal');
                 }
             }
 
