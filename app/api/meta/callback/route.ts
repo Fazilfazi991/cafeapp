@@ -48,20 +48,23 @@ export async function GET(request: Request) {
         }
 
         if (existingAccount) {
-            await supabase
+            const { error: updateErr } = await supabase
                 .from('connected_accounts')
                 .update(payload)
                 .eq('id', existingAccount.id)
+            if (updateErr) throw new Error(`DB Update Error: ${updateErr.message}`)
         } else {
-            await supabase
+            const { error: insertErr } = await supabase
                 .from('connected_accounts')
                 .insert({ restaurant_id: restaurantId, platform: 'facebook', ...payload })
+            if (insertErr) throw new Error(`DB Insert Error: ${insertErr.message}`)
         }
 
         return NextResponse.redirect(new URL('/dashboard/settings?success=meta_connected', request.url))
 
-    } catch (error) {
+
+    } catch (error: any) {
         console.error('[META_CALLBACK_ERROR_FATAL]', error)
-        return NextResponse.redirect(new URL('/dashboard/settings?error=meta_callback_failed', request.url))
+        return NextResponse.redirect(new URL(`/dashboard/settings?error=${encodeURIComponent(error.message || 'meta_callback_failed')}`, request.url))
     }
 }
