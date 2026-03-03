@@ -176,38 +176,18 @@ export default function CreatePostPage() {
         try {
             const postDate = scheduledDate ? new Date(scheduledDate) : new Date(Date.now() + 5 * 60000)
 
-            // If the selected image is a base64 blob (from Gemini), upload it from the browser
-            // so we have a proper public URL. The browser has the user's session token which passes RLS.
-            let finalImageUrl = posters ? posters[selectedStyle] : uploadedUrl
+            // If the selected image is a base64 blob (from Gemini), upload it via server API
+            // which uses the admin client to bypass Supabase RLS restrictions
+            let finalImageUrl: string = posters ? posters[selectedStyle] : (uploadedUrl || '')
             if (finalImageUrl && finalImageUrl.startsWith('data:image')) {
-                const supabase = createClient()
-                const { data: { session } } = await supabase.auth.getSession()
-                const { data: restaurants } = await supabase.from('restaurants').select('id').limit(1)
-                const restaurantId = restaurants?.[0]?.id
-                const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-                const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-
-                const base64Data = finalImageUrl.split(',')[1]
-                const byteArray = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
-                const blob = new Blob([byteArray], { type: 'image/jpeg' })
-                const fileName = `${restaurantId}/${Date.now()}-poster.jpg`
-
-                const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/media/${fileName}`, {
+                const uploadRes = await fetch('/api/upload/poster', {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${token}`,
-                        'apiKey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
-                        'Content-Type': 'image/jpeg',
-                        'x-upsert': 'true'
-                    },
-                    body: blob
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ base64Image: finalImageUrl })
                 })
-                if (!uploadRes.ok) {
-                    const errText = await uploadRes.text()
-                    throw new Error(`Failed to upload poster: ${errText}`)
-                }
-                const { data: { publicUrl } } = supabase.storage.from('media').getPublicUrl(fileName)
-                finalImageUrl = publicUrl
+                const uploadData = await uploadRes.json()
+                if (!uploadRes.ok) throw new Error(uploadData.error || 'Failed to upload poster image')
+                finalImageUrl = uploadData.publicUrl
             }
 
             for (const platform of selectedPlatforms) {
