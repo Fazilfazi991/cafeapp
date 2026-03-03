@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { analyzeFoodPhoto } from '@/lib/gemini';
+import { analyzeFoodPhoto, generateAllPosters } from '@/lib/gemini';
 import { generateCaptions } from '@/lib/openai';
-import { generateAllOrshotPosters } from '@/lib/orshot';
 
 export async function POST(req: Request) {
     try {
@@ -14,13 +13,13 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { imageUrl, customText, dishName: providedDishName } = body;
+        const { imageUrl, customText, dishName: providedDishName, offerText } = body;
 
         if (!imageUrl) {
             return NextResponse.json({ error: 'Missing image URL' }, { status: 400 });
         }
 
-        // STEP 1 — Get all restaurant data
+        // STEP 1 — Get restaurant data
         const { data: restaurants, error: fetchError } = await supabase
             .from('restaurants')
             .select('*')
@@ -59,7 +58,7 @@ export async function POST(req: Request) {
 
         console.log('Dish identified:', analysis.dishName);
 
-        // STEP 3 — Generate captions using dish info
+        // STEP 3 — Generate captions
         console.log('Generating captions...');
         const captions = await generateCaptions({
             restaurantName: restaurant.name || 'Our Restaurant',
@@ -71,92 +70,29 @@ export async function POST(req: Request) {
             platform: 'instagram'
         });
 
-        // STEP 4 — Convert uploaded photo to base64
-        console.log('Fetching photo to Base64...');
-        const photoResp = await fetch(imageUrl);
-        if (!photoResp.ok) throw new Error('Failed to fetch the uploaded photo');
-        const photoBuffer = await photoResp.arrayBuffer();
-        const photoBase64 = Buffer.from(photoBuffer).toString('base64');
+        // STEP 4 — Generate posters with Gemini AI
+        console.log('Generating posters with Gemini AI...');
+        const headline = offerText?.trim() || customText?.trim() || analysis.dishName;
 
-        // STEP 5 — Convert logo to base64 if exists
-        let logoBase64 = null;
-        if (brand?.logo_url) {
-            console.log('Fetching logo to Base64...');
-            try {
-                const logoResp = await fetch(brand.logo_url);
-                if (logoResp.ok) {
-                    const logoBuffer = await logoResp.arrayBuffer();
-                    logoBase64 = Buffer.from(logoBuffer).toString('base64');
-                }
-            } catch (e) {
-                console.log('Logo fetch failed:', e);
-            }
-        }
-
-        // STEP 6 — Build template data
-        const templateData: PosterTemplateData = {
-            photoBase64: photoBase64,
-            logoBase64: logoBase64 || null,
-            businessName: restaurant.name || '',
-            customText: customText || analysis.dishName,
+        const posters = await generateAllPosters({
+            photoUrl: imageUrl,
+            logoUrl: brand?.logo_url || undefined,
+            businessName: restaurant.name || 'Our Restaurant',
+            businessType: restaurant.cuisine_type || 'Restaurant',
+            customText: headline,
             phone: restaurant.phone || '',
             website: restaurant.website || '',
             primaryColor: brand?.primary_color || '#FF6B35',
-            secondaryColor: brand?.secondary_color || '#FFFFFF'
-        };
-
-        console.log('Template data summary:', {
-            hasPhoto: !!templateData.photoBase64,
-            hasLogo: !!templateData.logoBase64,
-            businessName: templateData.businessName,
-            customText: templateData.customText,
-            phone: templateData.phone,
-            website: templateData.website,
-            primaryColor: templateData.primaryColor
+            tone: restaurant.tone_of_voice || 'casual',
+            restaurantId: restaurant.id,
         });
 
-        // STEP 7 — Generate Posters
-        console.log('Generating posters...');
-
-        let posters;
-
-        try {
-            // Attempt to generate using the Orshot API first
-            console.log('Calling Orshot API...');
-
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-            posters = await generateAllOrshotPosters({
-                photoUrl: imageUrl,
-                logoUrl: brand?.logo_url || null,
-                dishName: body.dishName || analysis.dishName || '',
-                customHeadline: body.customText || 'Special',
-                offerText: body.offerText || '',
-                description: analysis.description || '',
-                phone: restaurant.phone || '',
-                website: restaurant.website || '',
-                instagramHandle: restaurant.instagram || '',
-                ctaText: 'Order Now',
-                restaurantName: restaurant.name,
-                restaurantId: restaurant.id,
-                token: token
-            });
-            console.log('Orshot API succeeded!');
-
-        } catch (orshotError: any) {
-            // Orshot failed — do not fall back to Puppeteer (Chrome is not available on Vercel)
-            console.error('Orshot poster generation failed:', orshotError.message);
-            throw new Error(`Poster generation failed: ${orshotError.message}`);
-        }
-
-        // STEP 8 — Return everything
         console.log('Complete! Returning data...');
         return NextResponse.json({
             success: true,
             dishName: analysis.dishName,
-            posters: posters,
-            captions: captions
+            posters,
+            captions
         });
 
     } catch (error: any) {
