@@ -49,7 +49,32 @@ export async function POST(req: Request) {
         const scheduledDate = scheduledTime ? new Date(scheduledTime) : new Date();
         const runAt = scheduledDate.toISOString();
 
-        // Save to our generic posts table for the Cron job to pick up
+        // If scheduled time is within 10 minutes, publish immediately bypass the daily cron limitations
+        const isImmediate = (scheduledDate.getTime() - Date.now()) < 10 * 60 * 1000;
+
+        let finalStatus = isImmediate ? 'published' : 'scheduled';
+        let publishedAt = isImmediate ? new Date().toISOString() : null;
+
+        // Let's import the publish functions dynamically or at the top
+        const { publishToFacebook, publishToInstagram } = await import('@/lib/meta');
+
+        if (isImmediate) {
+            try {
+                if (platforms.includes('facebook')) {
+                    if (!metaAccount.meta_page_id) throw new Error('No Facebook Page ID attached')
+                    await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
+                }
+                if (platforms.includes('instagram')) {
+                    if (!metaAccount.meta_ig_id) throw new Error('No Instagram Business Account attached')
+                    await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
+                }
+            } catch (publishErr: any) {
+                console.error('[IMMEDIATE_PUBLISH_FAIL]', publishErr);
+                finalStatus = 'failed';
+            }
+        }
+
+        // Save to our generic posts table
         const { data: insertedPost, error: insertError } = await supabase
             .from('posts')
             .insert({
@@ -58,9 +83,10 @@ export async function POST(req: Request) {
                 poster_url: imageUrl,
                 selected_caption: caption,
                 scheduled_at: runAt,
+                published_at: publishedAt,
                 // We store both "facebook" and "instagram" platforms requested here, the cron job parses them
                 platforms: platforms.filter((p: string) => p === 'facebook' || p === 'instagram'),
-                status: 'scheduled'
+                status: finalStatus
             })
             .select()
             .single()
