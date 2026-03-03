@@ -181,7 +181,8 @@ export async function getValidGmbToken(restaurantId: string) {
         throw new Error('GMB account not connected')
     }
 
-    const expiresAt = new Date(account.token_expires_at)
+    // If no expiry stored, treat as expired and refresh immediately
+    const expiresAt = account.token_expires_at ? new Date(account.token_expires_at) : new Date(0)
     // Check if within 5 minutes of expiring
     const fiveMinutesFromNow = new Date(Date.now() + 5 * 60 * 1000)
 
