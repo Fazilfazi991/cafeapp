@@ -62,11 +62,11 @@ export async function POST(req: Request) {
 
             if (platforms.includes('facebook')) {
                 if (!metaAccount.meta_page_id) throw new Error('No Facebook Page ID attached')
-                await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, finalImageUrl)
+                await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
             }
             if (platforms.includes('instagram')) {
                 if (!metaAccount.meta_ig_id) throw new Error('No Instagram Business Account attached')
-                await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, finalImageUrl)
+                await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
             }
         }
 
@@ -77,7 +77,7 @@ export async function POST(req: Request) {
             .insert({
                 restaurant_id: restaurant.id,
                 post_type: 'image',
-                poster_url: finalImageUrl,
+                poster_url: imageUrl,
                 selected_caption: caption,
                 scheduled_at: runAt,
                 published_at: publishedAt,
