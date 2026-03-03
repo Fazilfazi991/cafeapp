@@ -52,7 +52,6 @@ export async function POST(req: Request) {
             .from('connected_accounts')
             .update({
                 meta_page_id: chosenPage.id,
-                meta_page_name: chosenPage.name || null,
                 meta_access_token: chosenPage.access_token,
                 meta_ig_id: igId,
             })

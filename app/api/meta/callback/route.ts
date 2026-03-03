@@ -41,7 +41,6 @@ export async function GET(request: Request) {
         const payload = {
             meta_access_token: targetPage.access_token,
             meta_page_id: targetPage.id,
-            meta_page_name: targetPage.name,
             meta_ig_id: targetPage.meta_ig_id,
             meta_pages_json: pages, // Save ALL pages so user can pick later
             is_active: true
