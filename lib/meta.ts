@@ -1,13 +1,12 @@
 import { createClient } from '@/lib/supabase-server';
 
-const META_CLIENT_ID = process.env.META_CLIENT_ID!;
-const META_CLIENT_SECRET = process.env.META_CLIENT_SECRET!;
-const META_REDIRECT_URI = process.env.META_REDIRECT_URI!;
-
 /**
  * Generate the OAuth URL to redirect the user to Meta
  */
 export function getAuthUrl(restaurantId: string): string {
+    const META_CLIENT_ID = process.env.META_CLIENT_ID!;
+    const META_REDIRECT_URI = process.env.META_REDIRECT_URI!;
+
     const scopes = [
         'pages_show_list',
         'pages_read_engagement',
@@ -25,7 +24,7 @@ export function getAuthUrl(restaurantId: string): string {
     });
 
     const url = `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
-    
+
     // Explicitly requested by user: Console log the URL so they can verify the exact redirect_uri matches
     console.log('[META API] Generated OAuth URL:', url);
     console.log('[META API] Expected Redirect URI:', META_REDIRECT_URI);
@@ -37,6 +36,10 @@ export function getAuthUrl(restaurantId: string): string {
  * Exchange the short-lived OAuth code for a long-lived User Access Token
  */
 export async function exchangeCodeForTokens(code: string) {
+    const META_CLIENT_ID = process.env.META_CLIENT_ID!;
+    const META_CLIENT_SECRET = process.env.META_CLIENT_SECRET!;
+    const META_REDIRECT_URI = process.env.META_REDIRECT_URI!;
+
     const params = new URLSearchParams({
         client_id: META_CLIENT_ID,
         client_redirect_uri: META_REDIRECT_URI,
@@ -64,7 +67,7 @@ export async function exchangeCodeForTokens(code: string) {
     });
 
     const longLivedResponse = await fetch(`https://graph.facebook.com/v19.0/oauth/access_token?${longParams.toString()}`);
-    
+
     if (!longLivedResponse.ok) {
         const error = await longLivedResponse.text();
         throw new Error(`Failed to exchange short-lived token for long-lived token: ${error}`);
@@ -81,7 +84,7 @@ export async function getMetaAccounts(userAccessToken: string) {
     // Get the Pages
     const pagesResponse = await fetch(`https://graph.facebook.com/v19.0/me/accounts?access_token=${userAccessToken}`);
     if (!pagesResponse.ok) throw new Error('Failed to fetch Facebook Pages');
-    
+
     const pagesData = await pagesResponse.json();
     const pages = pagesData.data || [];
 
