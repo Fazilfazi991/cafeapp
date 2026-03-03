@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import GmbLocationManager from '@/components/settings/GmbLocationManager'
 import ProfileForm from '@/components/settings/ProfileForm'
+import CreateRestaurantForm from '@/components/settings/CreateRestaurantForm'
 
 export default async function SettingsPage() {
     const supabase = createClient()
@@ -16,7 +17,14 @@ export default async function SettingsPage() {
 
     const restaurant = restaurants?.[0]
 
-    if (!restaurant) return null
+    if (!restaurant) {
+        return (
+            <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <h1 className="text-3xl font-bold mb-8">Settings</h1>
+                <CreateRestaurantForm />
+            </div>
+        )
+    }
 
     return (
         <div className="max-w-3xl animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -93,7 +101,7 @@ export default async function SettingsPage() {
 
                     <div className="mb-8 pt-6 mt-6 border-t border-gray-100">
                         <h3 className="font-semibold text-[#1A1A1A] mb-3 flex items-center gap-2">📱 Meta (Facebook & Instagram)</h3>
-                        
+
                         {(() => {
                             const metaAccount = restaurant.connected_accounts?.find((a: any) => a.platform === 'facebook');
 

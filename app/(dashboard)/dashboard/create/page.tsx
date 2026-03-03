@@ -34,8 +34,8 @@ export default function CreatePostPage() {
     const [selectedPlatforms, setSelectedPlatforms] = useState<Platform[]>(['instagram'])
     const [selectedCaption, setSelectedCaption] = useState<string>('')
     const [contentType, setContentType] = useState<string>('Promotional Post')
-    const [includeText, setIncludeText] = useState<boolean>(true)
-    const [promotionalText, setPromotionalText] = useState<string>('')
+    const [customText, setCustomText] = useState<string>('')
+    const [offerText, setOfferText] = useState<string>('')
     const [dishName, setDishName] = useState('')
 
     // Results state
@@ -86,7 +86,7 @@ export default function CreatePostPage() {
                 const posterRes = await fetch('/api/generate/poster', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', includeText, promotionalText, dishName })
+                    body: JSON.stringify({ imageUrl: uploadedUrl, caption: '', customText, offerText, dishName })
                 })
                 const posterText = await posterRes.text()
                 let data;
@@ -308,47 +308,45 @@ export default function CreatePostPage() {
                             </select>
                         </div>
 
-                        <div className="mb-6 flex flex-col gap-4 p-4 bg-gray-50 rounded-md border border-gray-200">
-                            <div className="flex items-center justify-between">
+                        {fileType === 'image' && (
+                            <div className="mb-6 flex flex-col gap-5 p-5 bg-gray-50 rounded-xl border border-gray-200">
                                 <div>
-                                    <label className="text-sm font-semibold text-gray-800 block">Include Text on Poster</label>
-                                    <p className="text-xs text-gray-500 mt-1">If on, AI will generate styling text or specific details directly into the design.</p>
-                                </div>
-                                <div className="relative inline-flex items-center cursor-pointer" onClick={() => setIncludeText(!includeText)}>
-                                    <div className={`w-11 h-6 rounded-full transition-colors ${includeText ? 'bg-[#FF6B35]' : 'bg-gray-300'}`}>
-                                        <div className={`w-5 h-5 bg-white rounded-full mt-0.5 shadow-sm transform transition-transform ${includeText ? 'translate-x-5' : 'translate-x-1'}`}></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {includeText && (
-                                <div>
-                                    <label className="text-xs font-semibold text-gray-700 block mb-1">Custom Text (Optional)</label>
+                                    <label className="text-sm font-semibold text-gray-800 block mb-1.5">Dish Name <span className="text-gray-400 font-normal">(Optional)</span></label>
                                     <input
                                         type="text"
-                                        placeholder='e.g., "Special Offer $9.99" or "Delicious Menu"'
-                                        value={promotionalText}
-                                        onChange={(e) => setPromotionalText(e.target.value)}
-                                        className="w-full text-sm p-2 bg-white border border-gray-300 rounded focus:outline-none focus:border-[#FF6B35]"
-                                    />
-                                    <p className="text-[10px] text-gray-500 mt-1">Leave blank for generic aesthetic text, or type specific pricing/details for the AI to draw.</p>
-                                </div>
-                            )}
-
-                            {fileType === 'image' && (
-                                <div className="mt-2">
-                                    <label className="text-sm font-semibold text-gray-800 block mb-1">What dish is this? (Optional)</label>
-                                    <input
-                                        type="text"
-                                        placeholder='e.g. Crispy Samosa, Grilled Chicken, Chocolate Lava Cake'
+                                        placeholder="e.g. Crispy Samosa, Grilled Chicken, Chocolate Cake"
                                         value={dishName}
                                         onChange={(e) => setDishName(e.target.value)}
-                                        className="w-full text-sm p-3 bg-white border border-gray-200 rounded-md focus:outline-none focus:border-[#FF6B35] shadow-sm"
+                                        className="w-full text-sm p-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] shadow-sm transition-all"
                                     />
-                                    <p className="text-[11px] text-gray-500 mt-1">Leave blank and Gemini will automatically analyze the photo to detect the dish for you.</p>
+                                    <p className="text-[11px] text-gray-500 mt-1.5">Leave blank and AI will detect it automatically</p>
                                 </div>
-                            )}
-                        </div>
+
+                                <div>
+                                    <label className="text-sm font-semibold text-gray-800 block mb-1.5">Special Offer <span className="text-gray-400 font-normal">(Optional)</span></label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. 25% OFF, Buy 1 Get 1, Free Delivery!"
+                                        value={offerText}
+                                        onChange={(e) => setOfferText(e.target.value)}
+                                        className="w-full text-sm p-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] shadow-sm transition-all"
+                                    />
+                                    <p className="text-[11px] text-gray-500 mt-1.5">Leave blank if no offer</p>
+                                </div>
+
+                                <div>
+                                    <label className="text-sm font-semibold text-gray-800 block mb-1.5">Custom Headline <span className="text-gray-400 font-normal">(Optional)</span></label>
+                                    <input
+                                        type="text"
+                                        placeholder="e.g. Weekend Special, New on Menu, Chef's Pick"
+                                        value={customText}
+                                        onChange={(e) => setCustomText(e.target.value)}
+                                        className="w-full text-sm p-3 bg-white border border-gray-200 rounded-lg focus:outline-none focus:border-[#FF6B35] focus:ring-1 focus:ring-[#FF6B35] shadow-sm transition-all"
+                                    />
+                                    <p className="text-[11px] text-gray-500 mt-1.5">Leave blank to use dish name</p>
+                                </div>
+                            </div>
+                        )}
 
                         <button
                             onClick={generateAIContent}

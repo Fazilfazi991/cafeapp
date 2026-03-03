@@ -11,9 +11,10 @@ export async function renderHTMLToPNG(html: string): Promise<Buffer> {
     try {
         const page = await browser.newPage();
         await page.setViewport({ width: 1080, height: 1080, deviceScaleFactor: 1 });
-        await page.setContent(html, { waitUntil: 'networkidle0' });
+        await page.setContent(html, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
-        // Wait an extra moment to ensure fonts load
+        // Wait for all fonts to be loaded before snapping screenshot
+        await page.evaluateHandle('document.fonts.ready');
         await new Promise(resolve => setTimeout(resolve, 500));
 
         const screenshot = await page.screenshot({ type: 'png' });
@@ -24,29 +25,34 @@ export async function renderHTMLToPNG(html: string): Promise<Buffer> {
 }
 
 export async function uploadToStorage(
+    token: string,
     buffer: Buffer,
     restaurantId: string,
     templateName: string
 ): Promise<string> {
-    // using admin client to bypass RLS for server-side generation
-    const supabase = createAdminClient();
     const timestamp = Date.now();
-    const filename = `posters/${restaurantId}/${timestamp}-${templateName}.png`;
+    const fileName = `poster_${templateName}_${timestamp}.png`;
+    const filePath = `${restaurantId}/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
-        .from('media')
-        .upload(filename, buffer, {
-            contentType: 'image/png',
-            upsert: true,
-        });
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    if (uploadError) {
-        throw new Error(`Failed to upload poster: ${uploadError.message}`);
+    const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/media/${filePath}`, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+            'apiKey': anonKey as string,
+            'Content-Type': 'image/png',
+            'x-upsert': 'false'
+        },
+        body: buffer as any
+    });
+
+    if (!uploadRes.ok) {
+        const errorText = await uploadRes.text();
+        throw new Error(`Upload Failed: ${errorText}`);
     }
 
-    const { data: publicUrlData } = supabase.storage
-        .from('media')
-        .getPublicUrl(filename);
-
-    return publicUrlData.publicUrl;
+    // Return the public URL manually since we are not using the SDK here
+    return `${supabaseUrl}/storage/v1/object/public/media/${filePath}`;
 }

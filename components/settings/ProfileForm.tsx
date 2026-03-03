@@ -61,6 +61,17 @@ export default function ProfileForm({ restaurant }: { restaurant: any }) {
                 </div>
 
                 <div>
+                    <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Instagram Handle</label>
+                    <input
+                        name="instagram"
+                        defaultValue={restaurant.instagram || ''}
+                        placeholder="@yourrestaurant"
+                        className="w-full rounded-md px-4 py-2 bg-inherit border focus:outline-none focus:border-[#FF6B35]"
+                    />
+                    <p className="text-[11px] text-gray-500 mt-1">Your Instagram username with @</p>
+                </div>
+
+                <div>
                     <label className="text-sm font-medium text-[#1A1A1A] block mb-1">Email Address</label>
                     <input
                         name="email"
