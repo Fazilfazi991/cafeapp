@@ -13,7 +13,7 @@ export function getAuthUrl(restaurantId: string): string {
         'pages_manage_posts',
         'business_management',
         'instagram_basic',
-        'instagram_content_publishing'
+        'instagram_content_publish'
     ].join(',');
 
     const params = new URLSearchParams({
