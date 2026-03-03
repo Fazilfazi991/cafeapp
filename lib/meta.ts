@@ -11,8 +11,9 @@ export function getAuthUrl(restaurantId: string): string {
         'pages_show_list',
         'pages_read_engagement',
         'pages_manage_posts',
-        'instagram_business_basic',
-        'instagram_business_content_publish'
+        'business_management',
+        'instagram_basic',
+        'instagram_content_publishing'
     ].join(',');
 
     const params = new URLSearchParams({
