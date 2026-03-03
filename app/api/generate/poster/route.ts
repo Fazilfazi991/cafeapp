@@ -2,8 +2,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
 import { analyzeFoodPhoto } from '@/lib/gemini';
 import { generateCaptions } from '@/lib/openai';
-import { renderHTMLToPNG, uploadToStorage } from '@/lib/poster-renderer';
-import { getMinimalTemplate, getBoldTemplate, getLifestyleTemplate, PosterTemplateData } from '@/lib/poster-templates';
 import { generateAllOrshotPosters } from '@/lib/orshot';
 
 export async function POST(req: Request) {
@@ -147,30 +145,9 @@ export async function POST(req: Request) {
             console.log('Orshot API succeeded!');
 
         } catch (orshotError: any) {
-            console.warn('Orshot API failed, falling back to Puppeteer rendering:', orshotError.message);
-
-            // FALLBACK TO PUPPETEER
-            const [minBuf, boldBuf, lifeBuf] = await Promise.all([
-                renderHTMLToPNG(getMinimalTemplate(templateData)),
-                renderHTMLToPNG(getBoldTemplate(templateData)),
-                renderHTMLToPNG(getLifestyleTemplate(templateData))
-            ]);
-
-            console.log('Uploading fallback posters to Supabase...');
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-            const [minUrl, boldUrl, lifeUrl] = await Promise.all([
-                uploadToStorage(token, minBuf, restaurant.id, 'minimal'),
-                uploadToStorage(token, boldBuf, restaurant.id, 'bold'),
-                uploadToStorage(token, lifeBuf, restaurant.id, 'lifestyle')
-            ]);
-
-            posters = {
-                minimal: minUrl,
-                bold: boldUrl,
-                lifestyle: lifeUrl
-            };
+            // Orshot failed — do not fall back to Puppeteer (Chrome is not available on Vercel)
+            console.error('Orshot poster generation failed:', orshotError.message);
+            throw new Error(`Poster generation failed: ${orshotError.message}`);
         }
 
         // STEP 8 — Return everything
