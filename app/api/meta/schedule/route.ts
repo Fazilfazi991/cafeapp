@@ -48,11 +48,13 @@ export async function POST(req: Request) {
 
         // If it's a base64 data URL (from Gemini), Facebook will reject it. We must upload to Supabase Storage first.
         if (finalImageUrl.startsWith('data:image')) {
+            const { createAdminClient } = await import('@/lib/supabase-admin');
+            const adminSupabase = createAdminClient();
             const base64Data = finalImageUrl.split(',')[1];
             const buffer = Buffer.from(base64Data, 'base64');
             const fileName = `${restaurant.id}/${Date.now()}-poster.jpg`;
 
-            const { error: uploadError } = await supabase.storage
+            const { error: uploadError } = await adminSupabase.storage
                 .from('media') // reusing the existing media bucket
                 .upload(fileName, buffer, {
                     contentType: 'image/jpeg',
@@ -64,7 +66,7 @@ export async function POST(req: Request) {
                 throw new Error('Failed to upload generated poster to storage for publishing.');
             }
 
-            const { data: { publicUrl } } = supabase.storage
+            const { data: { publicUrl } } = adminSupabase.storage
                 .from('media')
                 .getPublicUrl(fileName);
 
