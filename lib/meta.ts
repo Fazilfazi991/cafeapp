@@ -117,16 +117,19 @@ export async function publishToFacebook(pageId: string, pageAccessToken: string,
         body: JSON.stringify({
             url: imageUrl,
             message: message,
+            published: true,
             access_token: pageAccessToken
         }),
     });
 
+    const responseText = await response.text();
+    console.log('[FB_PUBLISH_RESPONSE]', response.status, responseText);
+
     if (!response.ok) {
-        const error = await response.text();
-        throw new Error(`Facebook Publish Error: ${error}`);
+        throw new Error(`Facebook Publish Error: ${responseText}`);
     }
 
-    return await response.json(); // returns { id: "post_id", post_id: "pageid_postid" }
+    return JSON.parse(responseText); // returns { id: "post_id", post_id: "pageid_postid" }
 }
 
 /**
