@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import GmbLocationManager from '@/components/settings/GmbLocationManager'
 import ProfileForm from '@/components/settings/ProfileForm'
 import CreateRestaurantForm from '@/components/settings/CreateRestaurantForm'
+import MetaPageSelector from '@/components/settings/MetaPageSelector'
 
 export default async function SettingsPage() {
     const supabase = createClient()
@@ -107,16 +108,22 @@ export default async function SettingsPage() {
 
                             if (metaAccount && metaAccount.is_active) {
                                 return (
-                                    <div className="border rounded-lg p-5 bg-gray-50 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                                        <div>
-                                            <div className="flex items-center gap-2 mb-2">
+                                    <div className="border rounded-lg p-5 bg-gray-50">
+                                        <div className="flex items-center justify-between">
+                                            <div className="flex items-center gap-2">
                                                 <span className="font-medium text-[#1A1A1A] text-sm">Meta Pages</span>
                                                 <span className="text-xs font-semibold px-2 py-0.5 bg-green-100 text-green-700 rounded-full flex items-center gap-1">
                                                     <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Connected
                                                 </span>
                                             </div>
-                                            <p className="text-sm text-gray-500">Your Facebook Page and connected Instagram Professional account are linked.</p>
+                                            <form action="/api/meta/disconnect" method="POST">
+                                                <button className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-transparent hover:border-red-100">Disconnect</button>
+                                            </form>
                                         </div>
+                                        <MetaPageSelector
+                                            currentPageId={metaAccount.meta_page_id || null}
+                                            currentPageName={metaAccount.meta_page_name || null}
+                                        />
                                     </div>
                                 );
                             }

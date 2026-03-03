@@ -38,29 +38,24 @@ export async function GET(request: Request) {
             .eq('platform', 'facebook')
             .single()
 
+        const payload = {
+            meta_access_token: targetPage.access_token,
+            meta_page_id: targetPage.id,
+            meta_page_name: targetPage.name,
+            meta_ig_id: targetPage.meta_ig_id,
+            meta_pages_json: pages, // Save ALL pages so user can pick later
+            is_active: true
+        }
+
         if (existingAccount) {
-            // Update existing FB/IG account pair
             await supabase
                 .from('connected_accounts')
-                .update({
-                    meta_access_token: targetPage.access_token,
-                    meta_page_id: targetPage.id,
-                    meta_ig_id: targetPage.meta_ig_id,
-                    is_active: true
-                })
+                .update(payload)
                 .eq('id', existingAccount.id)
         } else {
-            // Insert a new Meta account record
             await supabase
                 .from('connected_accounts')
-                .insert({
-                    restaurant_id: restaurantId,
-                    platform: 'facebook',
-                    meta_access_token: targetPage.access_token,
-                    meta_page_id: targetPage.id,
-                    meta_ig_id: targetPage.meta_ig_id,
-                    is_active: true
-                })
+                .insert({ restaurant_id: restaurantId, platform: 'facebook', ...payload })
         }
 
         return NextResponse.redirect(new URL('/dashboard/settings?success=meta_connected', request.url))
