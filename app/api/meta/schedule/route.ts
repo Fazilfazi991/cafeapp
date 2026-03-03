@@ -44,42 +44,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No Meta platforms requested' }, { status: 400 })
         }
 
-        let finalImageUrl = imageUrl;
-
-        // If it's a base64 data URL (from Gemini), Facebook will reject it. We must upload to Supabase Storage first.
-        if (finalImageUrl.startsWith('data:image')) {
-            const base64Data = finalImageUrl.split(',')[1];
-            const buffer = Buffer.from(base64Data, 'base64');
-            const fileName = `${restaurant.id}/${Date.now()}-poster.jpg`;
-
-            // Fix for Supabase Storage SDK stripping tokens on the server: use explicit fetch
-            const { data: { session } } = await supabase.auth.getSession();
-            const token = session?.access_token || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-            const uploadRes = await fetch(`${supabaseUrl}/storage/v1/object/media/${fileName}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'apiKey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string,
-                    'Content-Type': 'image/jpeg',
-                    'x-upsert': 'true'
-                },
-                body: buffer
-            });
-
-            if (!uploadRes.ok) {
-                const errorText = await uploadRes.text();
-                console.error('[STORAGE_UPLOAD_ERROR]', errorText);
-                throw new Error('Supabase Storage Error: ' + errorText);
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-                .from('media')
-                .getPublicUrl(fileName);
-
-            finalImageUrl = publicUrl;
-        }
 
         // Calculate a publish time
         // If scheduledTime exists, use it. Otherwise post now.
