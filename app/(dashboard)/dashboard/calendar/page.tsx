@@ -62,6 +62,7 @@ export default function CalendarPage() {
         if (!dateString) return 'Unscheduled'
         const date = new Date(dateString)
         return new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Dubai',
             weekday: 'short',
             month: 'short',
             day: 'numeric',
