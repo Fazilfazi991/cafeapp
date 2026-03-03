@@ -44,6 +44,33 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'No Meta platforms requested' }, { status: 400 })
         }
 
+        let finalImageUrl = imageUrl;
+
+        // If it's a base64 data URL (from Gemini), Facebook will reject it. We must upload to Supabase Storage first.
+        if (finalImageUrl.startsWith('data:image')) {
+            const base64Data = finalImageUrl.split(',')[1];
+            const buffer = Buffer.from(base64Data, 'base64');
+            const fileName = `${restaurant.id}/${Date.now()}-poster.jpg`;
+
+            const { error: uploadError } = await supabase.storage
+                .from('media') // reusing the existing media bucket
+                .upload(fileName, buffer, {
+                    contentType: 'image/jpeg',
+                    upsert: true
+                });
+
+            if (uploadError) {
+                console.error('[STORAGE_UPLOAD_ERROR]', uploadError);
+                throw new Error('Failed to upload generated poster to storage for publishing.');
+            }
+
+            const { data: { publicUrl } } = supabase.storage
+                .from('media')
+                .getPublicUrl(fileName);
+
+            finalImageUrl = publicUrl;
+        }
+
         // Calculate a publish time
         // If scheduledTime exists, use it. Otherwise post now.
         const scheduledDate = scheduledTime ? new Date(scheduledTime) : new Date();
@@ -61,11 +88,11 @@ export async function POST(req: Request) {
 
             if (platforms.includes('facebook')) {
                 if (!metaAccount.meta_page_id) throw new Error('No Facebook Page ID attached')
-                await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
+                await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, finalImageUrl)
             }
             if (platforms.includes('instagram')) {
                 if (!metaAccount.meta_ig_id) throw new Error('No Instagram Business Account attached')
-                await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
+                await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, finalImageUrl)
             }
         }
 
@@ -76,7 +103,7 @@ export async function POST(req: Request) {
             .insert({
                 restaurant_id: restaurant.id,
                 post_type: 'image',
-                poster_url: imageUrl,
+                poster_url: finalImageUrl,
                 selected_caption: caption,
                 scheduled_at: runAt,
                 published_at: publishedAt,
