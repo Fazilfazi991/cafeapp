@@ -56,17 +56,39 @@ export async function POST(req: Request) {
         let finalStatus = isImmediate ? 'published' : 'scheduled';
         let publishedAt = isImmediate ? new Date().toISOString() : null;
 
+        const publishErrors: string[] = [];
+
         if (isImmediate) {
-            // Let's import the publish functions dynamically or at the top
             const { publishToFacebook, publishToInstagram } = await import('@/lib/meta');
 
             if (platforms.includes('facebook')) {
-                if (!metaAccount.meta_page_id) throw new Error('No Facebook Page ID attached')
-                await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
+                if (!metaAccount.meta_page_id) {
+                    publishErrors.push('No Facebook Page ID attached')
+                } else {
+                    try {
+                        await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
+                    } catch (fbErr: any) {
+                        publishErrors.push(`Facebook: ${fbErr.message}`)
+                    }
+                }
             }
             if (platforms.includes('instagram')) {
-                if (!metaAccount.meta_ig_id) throw new Error('No Instagram Business Account attached')
-                await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
+                if (!metaAccount.meta_ig_id) {
+                    publishErrors.push('No Instagram Business Account attached')
+                } else {
+                    try {
+                        await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
+                    } catch (igErr: any) {
+                        console.warn('[INSTAGRAM_PUBLISH_WARN]', igErr.message)
+                        publishErrors.push(`Instagram: ${igErr.message}`)
+                    }
+                }
+            }
+
+            // If ALL platforms failed, throw so the user sees an error
+            const requestedCount = platforms.filter((p: string) => p === 'facebook' || p === 'instagram').length
+            if (publishErrors.length === requestedCount) {
+                throw new Error(publishErrors.join(' | '))
             }
         }
 
