@@ -17,7 +17,7 @@ export async function POST(req: Request) {
         if (restaurant) {
             await supabase
                 .from('connected_accounts')
-                .update({ is_active: false, meta_access_token: null, meta_page_id: null, meta_ig_id: null, meta_pages_json: null })
+                .delete()
                 .eq('restaurant_id', restaurant.id)
                 .eq('platform', 'facebook')
         }

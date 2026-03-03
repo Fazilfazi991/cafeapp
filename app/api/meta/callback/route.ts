@@ -36,7 +36,7 @@ export async function GET(request: Request) {
             .select('id')
             .eq('restaurant_id', restaurantId)
             .eq('platform', 'facebook')
-            .single()
+            .maybeSingle()
 
         const payload = {
             meta_access_token: targetPage.access_token,
