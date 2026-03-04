@@ -12,7 +12,7 @@ export async function GET() {
 
         const { data: restaurants } = await supabase
             .from('restaurants')
-            .select('id, name, city, plan, logo_url, connected_accounts(platform, is_active)')
+            .select('id, name, city, plan, brand_settings(logo_url), connected_accounts(platform, is_active)')
             .eq('user_id', user.id)
             .limit(1)
 
@@ -26,7 +26,7 @@ export async function GET() {
             name: restaurant.name,
             city: restaurant.city || '',
             plan: restaurant.plan,
-            logo_url: restaurant.logo_url || null,
+            logo_url: (restaurant.brand_settings as any)?.[0]?.logo_url || null,
             isGmbConnected: restaurant.connected_accounts?.some((a: any) => a.platform === 'gmb' && a.is_active) || false
         })
 
