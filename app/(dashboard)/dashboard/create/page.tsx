@@ -449,52 +449,121 @@ export default function CreatePostPage() {
                 </div>
 
                 {/* Right Column: Live Preview */}
-                <div className="bg-white rounded-xl border p-6 shadow-sm h-[800px] flex flex-col sticky top-8">
-                    <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <LayoutTemplate size={20} className="text-gray-400" />
-                        Live Preview
-                    </h2>
-
-                    <div className="flex-1 bg-gray-50 rounded-xl overflow-hidden border flex flex-col relative max-w-[400px] mx-auto w-full shadow-inner">
-                        <div className="h-14 bg-white border-b flex items-center px-4 gap-3 shrink-0">
-                            <div className="w-8 h-8 rounded-full bg-gray-200"></div>
-                            <div className="font-bold text-sm">Your Restaurant</div>
-                        </div>
-
-                        <div className="aspect-square bg-gray-100 flex items-center justify-center shrink-0 w-full overflow-hidden border-b relative">
-                            {isGenerating ? (
-                                <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-10 gap-3">
-                                    <Loader2 className="animate-spin text-[#FF6B35]" size={32} />
-                                    <span className="text-sm font-medium animate-pulse">Rendering poster with Gemini...</span>
-                                </div>
-                            ) : posters ? (
-                                <div className="w-full h-full relative">
-                                    <img src={posters[selectedStyle]} className="w-full h-full object-cover transition-opacity duration-300" />
-                                </div>
-                            ) : uploadedUrl ? (
-                                <div className="w-full h-full relative group">
-                                    <img src={uploadedUrl} className="w-full h-full object-cover blur-sm opacity-50" />
-                                    <div className="absolute inset-0 flex items-center justify-center font-bold text-gray-500 uppercase tracking-widest text-sm">Original Photo</div>
-                                </div>
-                            ) : (
-                                <span className="text-gray-400 font-medium">No media uploaded</span>
-                            )}
-                        </div>
-
-                        <div className="p-4 bg-white flex-1 overflow-y-auto">
-                            {isGenerating ? (
-                                <div className="space-y-2">
-                                    <div className="h-3 bg-gray-200 rounded w-full animate-pulse"></div>
-                                    <div className="h-3 bg-gray-200 rounded w-5/6 animate-pulse"></div>
-                                    <div className="h-3 bg-gray-200 rounded w-4/6 animate-pulse"></div>
-                                </div>
-                            ) : selectedCaption ? (
-                                <p className="text-sm text-gray-800 whitespace-pre-wrap">{selectedCaption}</p>
-                            ) : (
-                                <p className="text-sm text-gray-400 italic">Caption preview will appear here...</p>
-                            )}
+                <div className="bg-white rounded-xl border p-6 shadow-sm flex flex-col sticky top-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-lg font-bold flex items-center gap-2">
+                            <LayoutTemplate size={20} className="text-gray-400" />
+                            Live Preview
+                        </h2>
+                        {/* Platform indicator */}
+                        <div className="flex gap-1">
+                            {selectedPlatforms.map(p => (
+                                <span key={p} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 tracking-wider">
+                                    {p === 'gmb' ? 'GMB' : p === 'instagram' ? 'IG' : 'FB'}
+                                </span>
+                            ))}
                         </div>
                     </div>
+
+                    {/* GMB Preview */}
+                    {selectedPlatforms.includes('gmb') && !selectedPlatforms.includes('instagram') && !selectedPlatforms.includes('facebook') ? (
+                        <div className="flex-1 bg-white rounded-xl border shadow-sm overflow-hidden max-w-[400px] mx-auto w-full">
+                            {/* GMB card header */}
+                            <div className="p-4 border-b">
+                                <div className="flex items-center gap-3 mb-3">
+                                    {restaurantInfo?.logo_url ? (
+                                        <img src={restaurantInfo.logo_url} className="w-10 h-10 rounded-full object-cover" />
+                                    ) : (
+                                        <div className="w-10 h-10 rounded-full bg-[#FF6B35] flex items-center justify-center text-white font-bold text-sm">
+                                            {(restaurantInfo?.name || 'R')[0]}
+                                        </div>
+                                    )}
+                                    <div>
+                                        <div className="font-bold text-sm">{restaurantInfo?.name || 'Your Restaurant'}</div>
+                                        <div className="text-xs text-gray-500 flex gap-0.5">{'★★★★★'}</div>
+                                    </div>
+                                </div>
+                                <div className="font-semibold text-sm text-[#1a73e8] mb-1">What's New</div>
+                            </div>
+                            {/* GMB image */}
+                            <div className="aspect-video bg-gray-100 overflow-hidden relative">
+                                {posters ? (
+                                    <img src={posters[selectedStyle]} className="w-full h-full object-cover" />
+                                ) : uploadedUrl ? (
+                                    <img src={uploadedUrl} className="w-full h-full object-cover blur-sm opacity-50" />
+                                ) : (
+                                    <div className="flex items-center justify-center h-full text-gray-400 text-sm">No media uploaded</div>
+                                )}
+                            </div>
+                            <div className="p-4">
+                                <p className="text-sm text-gray-700">{selectedCaption || <span className="italic text-gray-400">Caption preview will appear here...</span>}</p>
+                                <button className="mt-3 text-xs font-semibold text-[#1a73e8] border border-[#1a73e8] rounded px-3 py-1">Learn more</button>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Instagram / Facebook Preview */
+                        <div className={`bg-gray-50 rounded-xl overflow-hidden border flex flex-col relative mx-auto w-full shadow-inner ${selectedPlatforms.includes('facebook') && !selectedPlatforms.includes('instagram')
+                                ? 'max-w-[420px]' : 'max-w-[360px]'
+                            }`}>
+                            {/* Profile header */}
+                            <div className="h-14 bg-white border-b flex items-center px-4 gap-3 shrink-0">
+                                {restaurantInfo?.logo_url ? (
+                                    <img src={restaurantInfo.logo_url} className="w-8 h-8 rounded-full object-cover border" />
+                                ) : (
+                                    <div className="w-8 h-8 rounded-full bg-[#FF6B35] flex items-center justify-center text-white font-bold text-xs">
+                                        {(restaurantInfo?.name || 'R')[0]}
+                                    </div>
+                                )}
+                                <div>
+                                    <div className="font-bold text-sm leading-tight">{restaurantInfo?.name || 'Your Restaurant'}</div>
+                                    {selectedPlatforms.includes('facebook') && (
+                                        <div className="text-[10px] text-gray-400 leading-tight">Sponsored</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Image — aspect ratio adapts to platform */}
+                            <div className={`bg-gray-100 flex items-center justify-center shrink-0 w-full overflow-hidden border-b relative ${selectedPlatforms.includes('facebook') && !selectedPlatforms.includes('instagram')
+                                    ? 'aspect-[4/3]' : 'aspect-square'
+                                }`}>
+                                {isGenerating ? (
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 backdrop-blur-sm z-10 gap-3">
+                                        <Loader2 className="animate-spin text-[#FF6B35]" size={32} />
+                                        <span className="text-sm font-medium animate-pulse">Rendering poster with Gemini...</span>
+                                    </div>
+                                ) : posters ? (
+                                    <div className="w-full h-full relative">
+                                        <img src={posters[selectedStyle]} className="w-full h-full object-cover transition-opacity duration-300" />
+                                    </div>
+                                ) : uploadedUrl ? (
+                                    <div className="w-full h-full relative group">
+                                        <img src={uploadedUrl} className="w-full h-full object-cover blur-sm opacity-50" />
+                                        <div className="absolute inset-0 flex items-center justify-center font-bold text-gray-500 uppercase tracking-widest text-sm">Original Photo</div>
+                                    </div>
+                                ) : (
+                                    <span className="text-gray-400 font-medium">No media uploaded</span>
+                                )}
+                            </div>
+
+                            {/* Caption */}
+                            <div className="p-4 bg-white flex-1 overflow-y-auto">
+                                {isGenerating ? (
+                                    <div className="space-y-2">
+                                        <div className="h-3 bg-gray-200 rounded w-full animate-pulse"></div>
+                                        <div className="h-3 bg-gray-200 rounded w-5/6 animate-pulse"></div>
+                                        <div className="h-3 bg-gray-200 rounded w-4/6 animate-pulse"></div>
+                                    </div>
+                                ) : selectedCaption ? (
+                                    <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                                        <span className="font-bold text-[13px]">{restaurantInfo?.name || 'yourrestaurant'} </span>
+                                        {selectedCaption}
+                                    </p>
+                                ) : (
+                                    <p className="text-sm text-gray-400 italic">Caption preview will appear here...</p>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Actions Footer */}
                     {step === 3 && (
