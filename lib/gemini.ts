@@ -134,36 +134,54 @@ export async function generatePosterWithGemini(
     } as any
   })
 
-  // The base instructions common to all styles - omitting the footer text
-  const basePrompt = `Restaurant: ${params.businessName}
+  // 1. Prepare base prompt and style variations
+  const stylePrompts = {
+    // Variation 1
+    minimal: `Using this exact food photo as reference, restyle ONLY the background and lighting. Keep the dish exactly as it appears in the photo. Apply Dark moody background, dramatic candlelight, deep browns and golds, premium fine dining aesthetic style to the background and lighting only.
+- Do NOT add the restaurant name as text on the poster. Do NOT add any contact info, phone numbers, or addresses - NO extra text.
+- Square 1:1 aspect ratio, Instagram ready`,
+
+    // Variation 2
+    lifestyle: `Using this exact food photo as reference, restyle ONLY the background and lighting. Keep the dish exactly as it appears in the photo. Apply Clean white marble background, bright natural daylight, fresh and appetizing, minimalist modern style, light pastel accents, health-conscious cafe aesthetic style to the background and lighting only.
+- Do NOT add the restaurant name as text on the poster. Do NOT add any contact info, phone numbers, or addresses - NO extra text.
+- Square 1:1 aspect ratio, Instagram ready`,
+
+    // Variation 3 (No reference photo needed)
+    bold: `Restaurant: ${params.businessName}
 Dish: ${params.dishName}
 Description: ${params.dishDescription}
-
-Design requirements:
-- The dish should be the hero, centered and beautifully lit
-- Display the dish name in large, elegant, legible font in the lower-middle area
-- Do NOT add the restaurant name as text on the poster
-- Do NOT add any contact info, phone numbers, or addresses - NO extra text
-- Add a small circular logo placeholder in the top-right corner
-- Photorealistic, high quality
-- NO prices, NO fake logos (except the placeholder)
+- Generate an appetizing food poster for this dish.
+- Style: Deep royal blue or emerald green background, bold and energetic, vivid colors, modern street food meets premium style, Instagram-worthy pop aesthetic popular in UAE food scene.
+- The dish should be the hero, centered and beautifully lit.
+- Display the dish name in large, elegant, legible font in the lower-middle area.
+- Do NOT add the restaurant name as text on the poster. Do NOT add any contact info, phone numbers, or addresses - NO extra text.
 - Square 1:1 aspect ratio, Instagram ready`
-
-  const stylePrompts = {
-    minimal: basePrompt + `
-- Style: Dark moody background, dramatic candlelight, deep browns and golds, premium fine dining aesthetic`,
-
-    bold: basePrompt + `
-- Style: Deep royal blue or emerald green background, bold and energetic, vivid colors, modern street food meets premium style, Instagram-worthy pop aesthetic popular in UAE food scene`,
-
-    lifestyle: basePrompt + `
-- Style: Clean white marble background, bright natural daylight, fresh and appetizing, minimalist modern style, light pastel accents, health-conscious cafe aesthetic`
   }
 
-  const parts: any[] = [
-    { text: stylePrompts[params.style] }
-  ]
+  // 2. Fetch the reference image if needed for Variation 1 or 2
+  const parts: any[] = [];
 
+  if (params.style === 'minimal' || params.style === 'lifestyle') {
+    try {
+      const refImageRes = await fetch(params.photoUrl);
+      if (!refImageRes.ok) throw new Error('Failed to fetch reference photo');
+      const refBuffer = await refImageRes.arrayBuffer();
+      const mimeType = refImageRes.headers.get('content-type') || 'image/jpeg';
+      parts.push({
+        inlineData: {
+          mimeType,
+          data: Buffer.from(refBuffer).toString('base64')
+        }
+      });
+    } catch (err) {
+      console.warn('Could not load reference image, falling back to text generation:', err);
+    }
+  }
+
+  // Add the text prompt for the chosen style
+  parts.push({ text: stylePrompts[params.style] });
+
+  // 3. Generate Image
   const result = await model.generateContent({
     contents: [{
       role: 'user',
@@ -177,8 +195,6 @@ Design requirements:
     throw new Error('No response parts from Gemini')
   }
 
-  console.log('Response parts count:', responseParts.length)
-
   const imagePart = responseParts.find((p: any) => p.inlineData?.data && p.inlineData?.mimeType?.startsWith('image/'))
 
   if (!imagePart?.inlineData?.data) {
@@ -191,8 +207,7 @@ Design requirements:
   try {
     const composites: sharp.OverlayOptions[] = [];
 
-    // --- 1. Footer Bar & Text Overlay ---
-    // Create an SVG with the dark bar and the white text
+    // --- A. Footer Bar & Text Overlay ---
     const footerHeight = 70;
     const footerSvg = Buffer.from(`
       <svg width="1080" height="1080">
@@ -208,56 +223,59 @@ Design requirements:
       left: 0
     });
 
-    // --- 2. Logo Overlay ---
+    // --- B. Logo Overlay ---
     if (params.logoUrl) {
-      console.log('Fetching logo from:', params.logoUrl);
-      const logoRes = await fetch(params.logoUrl);
-      if (logoRes.ok) {
-        const logoBuffer = await logoRes.arrayBuffer();
+      try {
+        console.log('Fetching logo from:', params.logoUrl);
+        const logoRes = await fetch(params.logoUrl);
+        if (logoRes.ok) {
+          const logoBuffer = await logoRes.arrayBuffer();
 
-        // Target size for the logo (reduced to 55px per user request)
-        const logoSize = 55;
-        const padding = 15;
+          const logoSize = 55;
+          const padding = 15;
+          const borderSize = logoSize + 4; // 59px
 
-        // Create an SVG mask for circular crop
-        const circleSvg = Buffer.from(
-          `<svg width="${logoSize}" height="${logoSize}">
-            <circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="white"/>
-          </svg>`
-        );
+          // 1. Create a circular mask
+          const maskSvg = Buffer.from(
+            `<svg width="${logoSize}" height="${logoSize}">
+              <circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="white" />
+            </svg>`
+          );
 
-        // Crop the logo image to a circle
-        const resizedLogo = await sharp(Buffer.from(logoBuffer))
-          .resize(logoSize, logoSize, { fit: 'cover' })
-          .composite([{ input: circleSvg, blend: 'dest-in' }])
-          .png()
-          .toBuffer();
+          // 2. Resize the logo and apply circular mask
+          const roundedLogo = await sharp(Buffer.from(logoBuffer))
+            .resize(logoSize, logoSize, { fit: 'cover' })
+            .composite([{ input: maskSvg, blend: 'dest-in' }])
+            .png()
+            .toBuffer();
 
-        // White border background circle
-        const borderSize = logoSize + 4;
-        const borderSvg = Buffer.from(
-          `<svg width="${borderSize}" height="${borderSize}">
-            <circle cx="${borderSize / 2}" cy="${borderSize / 2}" r="${borderSize / 2}" fill="white"/>
-          </svg>`
-        );
+          // 3. Create a solid white circle background (for the ring border)
+          const whiteCircleSvg = Buffer.from(
+            `<svg width="${borderSize}" height="${borderSize}">
+              <circle cx="${borderSize / 2}" cy="${borderSize / 2}" r="${borderSize / 2}" fill="white" />
+            </svg>`
+          );
 
-        // Composite the logo onto the white border
-        const logoWithBorder = await sharp(borderSvg)
-          .composite([{ input: resizedLogo, gravity: 'center' }])
-          .png()
-          .toBuffer();
+          // 4. Composite the rounded logo evenly strictly over the white circle
+          const logoWithWhiteBorder = await sharp(whiteCircleSvg)
+            .composite([{ input: roundedLogo, gravity: 'center' }])
+            .png()
+            .toBuffer();
 
-        // Add to main image composite instructions (top-right with 15px padding)
-        composites.push({
-          input: logoWithBorder,
-          gravity: 'northeast',
-          top: padding,
-          left: 1080 - borderSize - padding
-        });
+          // 5. Add to main image in top-right corner
+          composites.push({
+            input: logoWithWhiteBorder,
+            gravity: 'northeast',
+            top: padding,
+            left: 1080 - borderSize - padding
+          });
+        }
+      } catch (err) {
+        console.warn('Failed to process logo overlay, skipping logo:', err);
       }
     }
 
-    // --- 3. Apply all overlays ---
+    // --- C. Apply all overlays ---
     finalImageBuffer = (await sharp(finalImageBuffer)
       .composite(composites)
       .jpeg({ quality: 90 })
@@ -267,7 +285,6 @@ Design requirements:
 
   } catch (err) {
     console.error('Failed to composite image:', err);
-    // If compositing fails, return the original Gemini image
     return `data:image/png;base64,${imageBase64}`;
   }
 }
