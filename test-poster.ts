@@ -8,6 +8,8 @@ async function main() {
             businessName: "Burger Joint",
             businessType: "Fast Food",
             customText: "50% OFF TODAY",
+            dishName: "Classic Cheeseburger",
+            dishDescription: "A juicy beef patty with melted cheese, fresh lettuce, and our secret sauce.",
             phone: "123-456-7890",
             website: "www.burgerjoint.com",
             primaryColor: "#FF0000",

@@ -80,6 +80,8 @@ export async function POST(req: Request) {
             businessName: restaurant.name || 'Our Restaurant',
             businessType: restaurant.cuisine_type || 'Restaurant',
             customText: headline,
+            dishName: analysis.dishName,
+            dishDescription: analysis.description,
             phone: restaurant.phone || '',
             website: restaurant.website || '',
             primaryColor: brand?.primary_color || '#FF6B35',

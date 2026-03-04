@@ -115,6 +115,8 @@ export async function generatePosterWithGemini(
     businessName: string
     businessType: string
     customText: string
+    dishName: string
+    dishDescription: string
     phone: string
     website: string
     primaryColor: string
@@ -123,74 +125,35 @@ export async function generatePosterWithGemini(
     restaurantId: string
   }
 ): Promise<string> {
-  // No longer fetching photoUrl or logoUrl since gemini-2.5-flash-image generates posters from scratch based on text prompts.
+  // No longer fetching photoUrl or logoUrl since the flash-image model generates posters from scratch based on text prompts.
 
   const model = genAI.getGenerativeModel({
-    model: 'gemini-2.5-flash-image', // Fixed model name
+    model: 'gemini-3.1-flash-image-preview',
     generationConfig: {
       responseModalities: ['IMAGE']
     } as any
   })
 
-  const basePrompt = `Professional food photography social media poster for "${params.businessName}", a ${params.businessType} restaurant. Make the food look irresistible, fresh and appetizing. Warm inviting atmosphere. Professional food marketing quality.`
+  const basePrompt = `Restaurant: ${params.businessName}
+Dish: ${params.dishName}
+Description: ${params.dishDescription}
 
+Design requirements:
+- Dark moody background with dramatic warm lighting on the food
+- The dish should be the hero, centered and beautifully lit
+- Display the dish name in large, elegant, legible font at the bottom
+- Display the restaurant name in smaller text below the dish name
+- Rich warm color palette: deep browns, golds, ambers
+- Style: premium Dubai restaurant advertisement
+- Photorealistic, high quality
+- NO prices, NO fake logos, NO extra text
+- Square 1:1 aspect ratio, Instagram ready`
+
+  // Keeping 3 styles so the frontend still gets 3 options, but with subtle variations of the main design
   const stylePrompts = {
-    minimal: `
-      ${basePrompt}
-      
-      Design requirements:
-      - Clean minimal professional aesthetic
-      - Add a dark gradient overlay on bottom 40%
-      - Display "${params.customText}" as large 
-        bold text in ${params.primaryColor} color
-        in the lower portion of the image
-      - Show "${params.businessName}" in white 
-        below the custom text
-      - Add a solid ${params.primaryColor} strip 
-        at very bottom with:
-        Left: "${params.phone}"
-        Right: "${params.website}"
-        Both in white text
-      - No placeholder text, no Lorem ipsum
-      - All text must be perfectly legible
-    `,
-
-    bold: `
-      ${basePrompt}
-      
-      Design:
-      - Vibrant, bold food photo composition fills top 58% of poster
-      - Solid ${params.primaryColor} background 
-        for bottom 42%
-      - "${params.customText}" as very large 
-        white bold text in the color section
-      - "${params.businessName}" smaller below 
-        in lighter white
-      - Horizontal divider line
-      - "${params.phone}" and "${params.website}" 
-        at bottom in white
-      - Strong impactful commercial design
-      - All text perfectly readable
-    `,
-
-    lifestyle: `
-      ${basePrompt}
-      
-      Design:
-      - Clean white/cream (#F8F8F6) background
-      - High quality food photo centered in a rounded rectangle 
-        with subtle shadow, filling middle portion
-      - Thin ${params.primaryColor} color bars 
-        at very top and very bottom edges
-      - "${params.businessName}" above photo 
-        in ${params.primaryColor} uppercase spaced
-      - "${params.customText}" below photo 
-        in dark charcoal bold text  
-      - "${params.phone}" and "${params.website}" 
-        near bottom in gray
-      - Premium editorial magazine aesthetic
-      - Perfectly legible text throughout
-    `
+    minimal: basePrompt,
+    bold: basePrompt + `\n- Give the backdrop a very subtle, moody ${params.primaryColor} colored lighting accent.`,
+    lifestyle: basePrompt + `\n- Add a subtle elegant lifestyle element in the dark blurred background, like a candlestick or wine glass.`
   }
 
   const parts: any[] = [
