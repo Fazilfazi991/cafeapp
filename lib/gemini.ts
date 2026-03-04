@@ -212,13 +212,13 @@ Description: ${params.dishDescription}
     const composites: sharp.OverlayOptions[] = [];
 
     // --- A. Footer Bar & Text Overlay ---
-    const footerHeight = 45;
+    const footerHeight = 80;
     // Note: SVG requires the xmlns attribute for sharp/librsvg to parse it correctly!
     const footerSvg = Buffer.from(`
       <svg width="1080" height="1080" xmlns="http://www.w3.org/2000/svg">
         <rect x="0" y="${1080 - footerHeight}" width="1080" height="${footerHeight}" fill="rgba(0,0,0,0.6)" />
-        <text x="25" y="${1080 - footerHeight + 28}" font-family="Arial, sans-serif" font-size="18" fill="white">📞 ${params.phone}</text>
-        <text x="1055" y="${1080 - footerHeight + 28}" text-anchor="end" font-family="Arial, sans-serif" font-size="18" fill="white">📍 ${params.address}</text>
+        <text x="35" y="${1080 - footerHeight + 50}" font-family="Arial, sans-serif" font-size="32" fill="white">📞 ${params.phone}</text>
+        <text x="1045" y="${1080 - footerHeight + 50}" text-anchor="end" font-family="Arial, sans-serif" font-size="32" fill="white">📍 ${params.address}</text>
       </svg>
     `);
 
@@ -236,9 +236,9 @@ Description: ${params.dishDescription}
         if (logoRes.ok) {
           const logoBuffer = await logoRes.arrayBuffer();
 
-          const logoSize = 55;
-          const padding = 15;
-          const borderSize = logoSize + 6; // 61px (gives a 3px border radius)
+          const logoSize = 120;
+          const padding = 30;
+          const borderSize = logoSize + 8; // 128px (gives a 4px border radius)
 
           // 1. Create a circular mask
           const maskSvg = Buffer.from(
