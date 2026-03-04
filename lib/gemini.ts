@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '@/lib/supabase-server';
+import sharp from 'sharp';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
 
@@ -144,7 +145,7 @@ Design requirements:
 - The dish should be the hero, centered and beautifully lit
 - Display the dish name in large, elegant, legible font centered above the footer
 - Do NOT add the restaurant name as text on the poster
-- Add a small circular logo placeholder in the bottom-right corner
+- Add a small circular logo placeholder in the top-right corner
 - Add a dark footer bar at the very bottom containing:
   - Contact number: ${params.phone}
   - Address: ${params.address}
@@ -198,6 +199,67 @@ Design requirements:
   // Instead of uploading to Supabase where we are hitting RLS errors without a service role key,
   // we will return the image as a base64 Data URL so the frontend can display and use it directly.
   const imageBase64 = imagePart.inlineData.data;
+
+  // If we have a logoUrl, overlay it using sharp
+  if (params.logoUrl) {
+    try {
+      console.log('Fetching logo from:', params.logoUrl);
+      const logoRes = await fetch(params.logoUrl);
+      if (logoRes.ok) {
+        const logoBuffer = await logoRes.arrayBuffer();
+
+        // Target size for the logo
+        const logoSize = 60;
+
+        // 1. Process the logo: resize it and ensure it fits nicely
+        // Note: For a true circular crop with white border, we create an SVG mask
+        const circleSvg = Buffer.from(
+          `<svg width="${logoSize}" height="${logoSize}">
+            <circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="white"/>
+          </svg>`
+        );
+
+        // Resize the logo image
+        const resizedLogo = await sharp(Buffer.from(logoBuffer))
+          .resize(logoSize, logoSize, { fit: 'cover' })
+          .composite([{ input: circleSvg, blend: 'dest-in' }])
+          .png()
+          .toBuffer();
+
+        // 2. Create a white background circle slightly larger for the border (e.g. 66px)
+        const borderSize = logoSize + 6;
+        const borderSvg = Buffer.from(
+          `<svg width="${borderSize}" height="${borderSize}">
+            <circle cx="${borderSize / 2}" cy="${borderSize / 2}" r="${borderSize / 2}" fill="white"/>
+          </svg>`
+        );
+
+        // 3. Composite the logo onto the border
+        const logoWithBorder = await sharp(borderSvg)
+          .composite([{ input: resizedLogo, gravity: 'center' }])
+          .png()
+          .toBuffer();
+
+        // 4. Composite the bordered logo onto the main generated image
+        const mainImageBuffer = Buffer.from(imageBase64, 'base64');
+        const finalImageBuffer = await sharp(mainImageBuffer)
+          .composite([{
+            input: logoWithBorder,
+            gravity: 'northeast',
+            top: 40,  // padding from top
+            left: 1080 - borderSize - 40 // assuming 1080x1080 standard square. padding from right
+          }])
+          .jpeg({ quality: 90 }) // Converting the final output to standard JPEG
+          .toBuffer();
+
+        return `data:image/jpeg;base64,${finalImageBuffer.toString('base64')}`;
+      }
+    } catch (err) {
+      console.error('Failed to composite logo:', err);
+      // Fallback to original image on failure
+    }
+  }
+
   return `data:image/png;base64,${imageBase64}`
 }
 
