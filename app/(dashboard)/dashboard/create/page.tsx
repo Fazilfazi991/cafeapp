@@ -457,9 +457,13 @@ export default function CreatePostPage() {
                         </h2>
                         <div className="flex gap-1">
                             {selectedPlatforms.map(p => (
-                                <span key={p} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full tracking-wider"
-                                    style={{ background: p === 'instagram' ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', color: 'white' }}>
-                                    {p === 'gmb' ? '🇬 GMB' : p === 'instagram' ? 'IG' : 'FB'}
+                                <span key={p} className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full tracking-wider text-white"
+                                    style={{
+                                        background: p === 'instagram'
+                                            ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'
+                                            : p === 'facebook' ? '#1877f2' : '#34a853'
+                                    }}>
+                                    {p === 'gmb' ? 'GMB' : p === 'instagram' ? 'IG' : 'FB'}
                                 </span>
                             ))}
                         </div>
