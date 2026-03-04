@@ -112,7 +112,11 @@ export async function POST(req: Request) {
 
         if (insertError) throw insertError
 
-        return NextResponse.json({ success: true, post: insertedPost })
+        return NextResponse.json({
+            success: true,
+            post: insertedPost,
+            warnings: publishErrors.length > 0 ? publishErrors : undefined
+        })
 
     } catch (error: any) {
         console.error('[META_SCHEDULE_ERROR]', error)

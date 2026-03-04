@@ -219,9 +219,14 @@ export default function CreatePostPage() {
                 })
                 const data = await response.json()
                 if (!response.ok) throw new Error(`[Meta] ${data.error || 'Failed to schedule post'}`)
+                if (data.warnings?.length > 0) {
+                    setError(`⚠️ Partial success: Facebook posted, but Instagram failed — ${data.warnings.join(', ')}`)
+                }
             }
 
-            alert('Posts scheduled successfully!')
+            if (!error) {
+                alert('Posts scheduled successfully!')
+            }
             setStep(1)
             setUploadedUrl(null)
             setPosters(null)
