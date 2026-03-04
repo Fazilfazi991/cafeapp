@@ -67,43 +67,42 @@ export default async function DashboardLayout({
         redirect('/login')
     }
 
+    const navLinks = [
+        { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
+        { href: '/dashboard/create', icon: PenSquare, label: 'Create' },
+        { href: '/dashboard/calendar', icon: Calendar, label: 'Calendar' },
+        { href: '/dashboard/media', icon: FolderOpen, label: 'Media' },
+        { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
+    ]
+
     return (
         <div className="min-h-screen bg-[#FAFAFA] flex text-[#1A1A1A]">
-            {/* Sidebar */}
+            {/* Desktop Sidebar */}
             <aside className="w-64 bg-[#1A1A1A] text-white hidden md:flex flex-col">
                 <div className="p-6 border-b border-gray-800 flex items-center gap-3">
                     <div className="w-8 h-8 rounded bg-[#FF6B35]"></div>
                     <span className="font-bold text-xl tracking-tight">PostChef</span>
                 </div>
                 <nav className="p-4 flex flex-col gap-2 flex-1">
-                    <Link href="/dashboard" className="px-4 py-3 hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors">
-                        <LayoutDashboard size={18} />
-                        Overview
-                    </Link>
-                    <Link href="/dashboard/create" className="px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors">
-                        <PenSquare size={18} />
-                        Create Post
-                    </Link>
-                    <Link href="/dashboard/calendar" className="px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors">
-                        <Calendar size={18} />
-                        Calendar
-                    </Link>
-                    <Link href="/dashboard/media" className="px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors">
-                        <FolderOpen size={18} />
-                        Media Library
-                    </Link>
-                    <Link href="/dashboard/settings" className="px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors mt-auto">
-                        <Settings size={18} />
-                        Settings
-                    </Link>
+                    {navLinks.map(({ href, icon: Icon, label }) => (
+                        <Link key={href} href={href} className="px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors">
+                            <Icon size={18} />
+                            {label}
+                        </Link>
+                    ))}
                 </nav>
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col">
-                <header className="h-16 border-b bg-white flex items-center justify-end px-8">
-                    <div className="flex items-center gap-4">
-                        <div className="text-sm font-medium text-gray-500">{user.email}</div>
+            <div className="flex-1 flex flex-col min-w-0">
+                <header className="h-16 border-b bg-white flex items-center justify-between px-4 md:px-8">
+                    {/* Mobile logo */}
+                    <div className="flex items-center gap-2 md:hidden">
+                        <div className="w-7 h-7 rounded bg-[#FF6B35]"></div>
+                        <span className="font-bold text-lg tracking-tight">PostChef</span>
+                    </div>
+                    <div className="flex items-center gap-4 ml-auto">
+                        <div className="text-sm font-medium text-gray-500 hidden sm:block">{user.email}</div>
                         <form action={signOut}>
                             <button className="p-2 text-gray-400 hover:text-[#1A1A1A] hover:bg-gray-100 rounded-md transition-colors" title="Sign Out">
                                 <LogOut size={18} />
@@ -120,10 +119,20 @@ export default async function DashboardLayout({
                     </div>
                 )}
 
-                <main className="p-8 flex-1">
+                <main className="p-4 md:p-8 flex-1 pb-24 md:pb-8">
                     {children}
                 </main>
             </div>
+
+            {/* Mobile Bottom Navigation */}
+            <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1A1A1A] text-white flex items-center justify-around h-16 z-50 border-t border-gray-800">
+                {navLinks.map(({ href, icon: Icon, label }) => (
+                    <Link key={href} href={href} className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 text-gray-400 hover:text-white transition-colors">
+                        <Icon size={20} />
+                        <span className="text-[10px] font-medium">{label}</span>
+                    </Link>
+                ))}
+            </nav>
         </div>
     )
 }
