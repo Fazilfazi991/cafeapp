@@ -204,6 +204,11 @@ Description: ${params.dishDescription}
   const imageBase64 = imagePart.inlineData.data;
   let finalImageBuffer = Buffer.from(imageBase64, 'base64');
   try {
+    // Force the base image to exactly 1080x1080 so our 1080x1080 SVGs don't throw out-of-bounds errors.
+    finalImageBuffer = (await sharp(finalImageBuffer)
+      .resize(1080, 1080, { fit: 'cover' })
+      .toBuffer()) as any;
+
     const composites: sharp.OverlayOptions[] = [];
 
     // --- A. Footer Bar & Text Overlay ---
