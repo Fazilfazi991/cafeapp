@@ -127,8 +127,6 @@ export async function generatePosterWithGemini(
     restaurantId: string
   }
 ): Promise<string> {
-  // No longer fetching photoUrl or logoUrl since the flash-image model generates posters from scratch based on text prompts.
-
   const model = genAI.getGenerativeModel({
     model: 'gemini-3.1-flash-image-preview',
     generationConfig: {
@@ -136,31 +134,30 @@ export async function generatePosterWithGemini(
     } as any
   })
 
+  // The base instructions common to all styles - omitting the footer text
   const basePrompt = `Restaurant: ${params.businessName}
 Dish: ${params.dishName}
 Description: ${params.dishDescription}
 
 Design requirements:
-- Dark moody background with dramatic warm lighting on the food
 - The dish should be the hero, centered and beautifully lit
-- Display the dish name in large, elegant, legible font centered above the footer
+- Display the dish name in large, elegant, legible font in the lower-middle area
 - Do NOT add the restaurant name as text on the poster
+- Do NOT add any contact info, phone numbers, or addresses - NO extra text
 - Add a small circular logo placeholder in the top-right corner
-- Add a dark footer bar at the very bottom containing:
-  - Contact number: ${params.phone}
-  - Address: ${params.address}
-  - Use small, clean white font for the footer text
-- Rich warm color palette: deep browns, golds, ambers
-- Style: premium Dubai restaurant advertisement
 - Photorealistic, high quality
-- NO prices, NO fake logos (except the placeholder), NO extra text
+- NO prices, NO fake logos (except the placeholder)
 - Square 1:1 aspect ratio, Instagram ready`
 
-  // Keeping 3 styles so the frontend still gets 3 options, but with subtle variations of the main design
   const stylePrompts = {
-    minimal: basePrompt,
-    bold: basePrompt + `\n- Give the backdrop a very subtle, moody ${params.primaryColor} colored lighting accent.`,
-    lifestyle: basePrompt + `\n- Add a subtle elegant lifestyle element in the dark blurred background, like a candlestick or wine glass.`
+    minimal: basePrompt + `
+- Style: Dark moody background, dramatic candlelight, deep browns and golds, premium fine dining aesthetic`,
+
+    bold: basePrompt + `
+- Style: Deep royal blue or emerald green background, bold and energetic, vivid colors, modern street food meets premium style, Instagram-worthy pop aesthetic popular in UAE food scene`,
+
+    lifestyle: basePrompt + `
+- Style: Clean white marble background, bright natural daylight, fresh and appetizing, minimalist modern style, light pastel accents, health-conscious cafe aesthetic`
   }
 
   const parts: any[] = [
@@ -181,86 +178,98 @@ Design requirements:
   }
 
   console.log('Response parts count:', responseParts.length)
-  console.log('Part types:', responseParts.map((p: any) => p.text ? 'text' : p.inlineData ? 'image' : 'unknown'))
 
   const imagePart = responseParts.find((p: any) => p.inlineData?.data && p.inlineData?.mimeType?.startsWith('image/'))
 
   if (!imagePart?.inlineData?.data) {
-    console.error('Parts received:', JSON.stringify(responseParts.map((p: any) => ({
-      hasText: !!p.text,
-      hasImage: !!p.inlineData,
-      mimeType: p.inlineData?.mimeType
-    }))))
     throw new Error('Gemini did not return an image. Check console for response details.')
   }
 
-  const imageBuffer = Buffer.from(imagePart.inlineData.data, 'base64')
-
-  // Instead of uploading to Supabase where we are hitting RLS errors without a service role key,
-  // we will return the image as a base64 Data URL so the frontend can display and use it directly.
   const imageBase64 = imagePart.inlineData.data;
+  let finalImageBuffer = Buffer.from(imageBase64, 'base64');
 
-  // If we have a logoUrl, overlay it using sharp
-  if (params.logoUrl) {
-    try {
+  try {
+    const composites: sharp.OverlayOptions[] = [];
+
+    // --- 1. Footer Bar & Text Overlay ---
+    // Create an SVG with the dark bar and the white text
+    const footerHeight = 70;
+    const footerSvg = Buffer.from(`
+      <svg width="1080" height="1080">
+        <rect x="0" y="${1080 - footerHeight}" width="1080" height="${footerHeight}" fill="#1c1917" />
+        <text flex="1" x="40" y="${1080 - footerHeight + 42}" font-family="Arial, sans-serif" font-size="24" fill="white" font-weight="600">Contact number: ${params.phone}</text>
+        <text flex="1" x="1040" y="${1080 - footerHeight + 42}" text-anchor="end" font-family="Arial, sans-serif" font-size="24" fill="white" font-weight="600">Address: ${params.address}</text>
+      </svg>
+    `);
+
+    composites.push({
+      input: footerSvg,
+      top: 0,
+      left: 0
+    });
+
+    // --- 2. Logo Overlay ---
+    if (params.logoUrl) {
       console.log('Fetching logo from:', params.logoUrl);
       const logoRes = await fetch(params.logoUrl);
       if (logoRes.ok) {
         const logoBuffer = await logoRes.arrayBuffer();
 
-        // Target size for the logo
-        const logoSize = 60;
+        // Target size for the logo (reduced to 55px per user request)
+        const logoSize = 55;
+        const padding = 15;
 
-        // 1. Process the logo: resize it and ensure it fits nicely
-        // Note: For a true circular crop with white border, we create an SVG mask
+        // Create an SVG mask for circular crop
         const circleSvg = Buffer.from(
           `<svg width="${logoSize}" height="${logoSize}">
             <circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="white"/>
           </svg>`
         );
 
-        // Resize the logo image
+        // Crop the logo image to a circle
         const resizedLogo = await sharp(Buffer.from(logoBuffer))
           .resize(logoSize, logoSize, { fit: 'cover' })
           .composite([{ input: circleSvg, blend: 'dest-in' }])
           .png()
           .toBuffer();
 
-        // 2. Create a white background circle slightly larger for the border (e.g. 66px)
-        const borderSize = logoSize + 6;
+        // White border background circle
+        const borderSize = logoSize + 4;
         const borderSvg = Buffer.from(
           `<svg width="${borderSize}" height="${borderSize}">
             <circle cx="${borderSize / 2}" cy="${borderSize / 2}" r="${borderSize / 2}" fill="white"/>
           </svg>`
         );
 
-        // 3. Composite the logo onto the border
+        // Composite the logo onto the white border
         const logoWithBorder = await sharp(borderSvg)
           .composite([{ input: resizedLogo, gravity: 'center' }])
           .png()
           .toBuffer();
 
-        // 4. Composite the bordered logo onto the main generated image
-        const mainImageBuffer = Buffer.from(imageBase64, 'base64');
-        const finalImageBuffer = await sharp(mainImageBuffer)
-          .composite([{
-            input: logoWithBorder,
-            gravity: 'northeast',
-            top: 40,  // padding from top
-            left: 1080 - borderSize - 40 // assuming 1080x1080 standard square. padding from right
-          }])
-          .jpeg({ quality: 90 }) // Converting the final output to standard JPEG
-          .toBuffer();
-
-        return `data:image/jpeg;base64,${finalImageBuffer.toString('base64')}`;
+        // Add to main image composite instructions (top-right with 15px padding)
+        composites.push({
+          input: logoWithBorder,
+          gravity: 'northeast',
+          top: padding,
+          left: 1080 - borderSize - padding
+        });
       }
-    } catch (err) {
-      console.error('Failed to composite logo:', err);
-      // Fallback to original image on failure
     }
-  }
 
-  return `data:image/png;base64,${imageBase64}`
+    // --- 3. Apply all overlays ---
+    finalImageBuffer = (await sharp(finalImageBuffer)
+      .composite(composites)
+      .jpeg({ quality: 90 })
+      .toBuffer()) as any;
+
+    return `data:image/jpeg;base64,${finalImageBuffer.toString('base64')}`;
+
+  } catch (err) {
+    console.error('Failed to composite image:', err);
+    // If compositing fails, return the original Gemini image
+    return `data:image/png;base64,${imageBase64}`;
+  }
 }
 
 export async function generateAllPosters(
