@@ -84,6 +84,7 @@ export async function POST(req: Request) {
             dishDescription: analysis.description,
             phone: restaurant.phone || '',
             website: restaurant.website || '',
+            address: restaurant.address || 'Dubai, UAE',
             primaryColor: brand?.primary_color || '#FF6B35',
             tone: restaurant.tone_of_voice || 'casual',
             restaurantId: restaurant.id,

@@ -119,6 +119,7 @@ export async function generatePosterWithGemini(
     dishDescription: string
     phone: string
     website: string
+    address: string
     primaryColor: string
     tone: string
     style: 'minimal' | 'bold' | 'lifestyle'
@@ -141,12 +142,17 @@ Description: ${params.dishDescription}
 Design requirements:
 - Dark moody background with dramatic warm lighting on the food
 - The dish should be the hero, centered and beautifully lit
-- Display the dish name in large, elegant, legible font at the bottom
-- Display the restaurant name in smaller text below the dish name
+- Display the dish name in large, elegant, legible font centered above the footer
+- Do NOT add the restaurant name as text on the poster
+- Add a small circular logo placeholder in the bottom-right corner
+- Add a dark footer bar at the very bottom containing:
+  - Contact number: ${params.phone}
+  - Address: ${params.address}
+  - Use small, clean white font for the footer text
 - Rich warm color palette: deep browns, golds, ambers
 - Style: premium Dubai restaurant advertisement
 - Photorealistic, high quality
-- NO prices, NO fake logos, NO extra text
+- NO prices, NO fake logos (except the placeholder), NO extra text
 - Square 1:1 aspect ratio, Instagram ready`
 
   // Keeping 3 styles so the frontend still gets 3 options, but with subtle variations of the main design

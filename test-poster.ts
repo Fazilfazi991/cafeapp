@@ -12,6 +12,7 @@ async function main() {
             dishDescription: "A juicy beef patty with melted cheese, fresh lettuce, and our secret sauce.",
             phone: "123-456-7890",
             website: "www.burgerjoint.com",
+            address: "123 Test St, Dubai",
             primaryColor: "#FF0000",
             tone: "casual",
             style: "minimal",
