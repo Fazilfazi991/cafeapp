@@ -56,7 +56,7 @@ export default function Login({ searchParams }: { searchParams: { message: strin
                 </button>
 
                 {searchParams?.message && (
-                    <p className="mt-4 p-4 bg-red-100 text-red-600 text-center rounded-md text-sm">
+                    <p className={`mt-4 p-4 text-center rounded-md text-sm ${searchParams.message.toLowerCase().includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                         {searchParams.message}
                     </p>
                 )}
