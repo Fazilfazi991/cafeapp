@@ -3,6 +3,7 @@ import GmbLocationManager from '@/components/settings/GmbLocationManager'
 import ProfileForm from '@/components/settings/ProfileForm'
 import CreateRestaurantForm from '@/components/settings/CreateRestaurantForm'
 import MetaPageSelector from '@/components/settings/MetaPageSelector'
+import WhatsappConnectManager from '@/components/settings/WhatsappConnectManager'
 
 export default async function SettingsPage() {
     const supabase = createClient()
@@ -142,6 +143,13 @@ export default async function SettingsPage() {
                                 </div>
                             );
                         })()}
+                    </div>
+
+                    <div className="mb-8 pt-6 mt-6 border-t border-gray-100">
+                        <WhatsappConnectManager
+                            restaurantId={restaurant.id}
+                            initialConnected={!!restaurant.connected_accounts?.find((a: any) => a.platform === 'facebook' && a.whatsapp_business_account_id)}
+                        />
                     </div>
 
                 </div>

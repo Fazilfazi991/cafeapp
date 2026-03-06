@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, Calendar, PenSquare, Settings, LogOut, FolderOpen, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, Calendar, PenSquare, Settings, LogOut, FolderOpen, AlertTriangle, Users } from 'lucide-react'
 
 export default async function DashboardLayout({
     children,
@@ -92,6 +92,7 @@ export default async function DashboardLayout({
         { href: '/dashboard/create', icon: PenSquare, label: 'Create' },
         { href: '/dashboard/calendar', icon: Calendar, label: 'Calendar' },
         { href: '/dashboard/media', icon: FolderOpen, label: 'Media' },
+        { href: '/dashboard/contacts', icon: Users, label: 'Contacts' },
         { href: '/dashboard/settings', icon: Settings, label: 'Settings' },
     ]
 

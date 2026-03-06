@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function POST(req: Request) {
     try {
         const body = await req.json()
-        const { caption, imageUrl, scheduledTime, platforms } = body
+        const { caption, imageUrl, scheduledTime, platforms, whatsappCustomMessage } = body
 
         if (!caption || !imageUrl || !platforms || platforms.length === 0) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Meta account is not connected.' }, { status: 403 })
         }
 
-        const fbPlatform = platforms.find((p: string) => p === 'facebook' || p === 'instagram');
+        const fbPlatform = platforms.find((p: string) => p === 'facebook' || p === 'instagram' || p === 'whatsapp');
         if (!fbPlatform) {
             return NextResponse.json({ error: 'No Meta platforms requested' }, { status: 400 })
         }
@@ -51,7 +51,12 @@ export async function POST(req: Request) {
         const runAt = scheduledDate.toISOString();
 
         // If scheduled time is within 10 minutes, publish immediately bypass the daily cron limitations
-        const isImmediate = (scheduledDate.getTime() - Date.now()) < 10 * 60 * 1000;
+        let isImmediate = (scheduledDate.getTime() - Date.now()) < 10 * 60 * 1000;
+
+        // Force background processing for WhatsApp because broadcasting to 1000s of contacts takes too long for a Vercel function
+        if (platforms.includes('whatsapp')) {
+            isImmediate = false;
+        }
 
         let finalStatus = isImmediate ? 'published' : 'scheduled';
         let publishedAt = isImmediate ? new Date().toISOString() : null;
@@ -101,10 +106,11 @@ export async function POST(req: Request) {
                 post_type: 'image',
                 poster_url: imageUrl,
                 selected_caption: caption,
+                whatsapp_custom_message: whatsappCustomMessage,
                 scheduled_at: runAt,
                 published_at: publishedAt,
-                // We store both "facebook" and "instagram" platforms requested here, the cron job parses them
-                platforms: platforms.filter((p: string) => p === 'facebook' || p === 'instagram'),
+                // We store the requested platforms here, the cron job parses them
+                platforms: platforms.filter((p: string) => ['facebook', 'instagram', 'whatsapp'].includes(p)),
                 status: finalStatus
             })
             .select()

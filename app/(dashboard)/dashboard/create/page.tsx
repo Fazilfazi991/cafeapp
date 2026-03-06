@@ -5,7 +5,7 @@ import MediaUploader from '@/components/create/MediaUploader'
 import { createClient } from '@/lib/supabase'
 import { Loader2, Wand2, Calendar, LayoutTemplate, Info } from 'lucide-react'
 
-type Platform = 'instagram' | 'facebook' | 'gmb'
+type Platform = 'instagram' | 'facebook' | 'gmb' | 'whatsapp'
 
 export default function CreatePostPage() {
     const [step, setStep] = useState<1 | 2 | 3>(1)
@@ -42,6 +42,31 @@ export default function CreatePostPage() {
     // Results state
     const [isScheduling, setIsScheduling] = useState(false)
     const [scheduledDate, setScheduledDate] = useState<string>('')
+
+    // WhatsApp State
+    const [waConnected, setWaConnected] = useState(false)
+    const [waPhone, setWaPhone] = useState<string | null>(null)
+    const [waTemplateApproved, setWaTemplateApproved] = useState(false)
+    const [whatsappMessage, setWhatsappMessage] = useState<string>('')
+    const [waContactsCount, setWaContactsCount] = useState<number>(0)
+
+    useEffect(() => {
+        if (restaurantInfo?.id) {
+            fetch(`/api/whatsapp/status?restaurantId=${restaurantInfo.id}`)
+                .then(r => r.json())
+                .then(data => {
+                    setWaConnected(data.connected)
+                    setWaPhone(data.phoneNumber)
+                    setWaTemplateApproved(data.templateStatus === 'APPROVED')
+                })
+
+            fetch(`/api/contacts?restaurantId=${restaurantInfo.id}`)
+                .then(r => r.json())
+                .then(data => {
+                    if (data.contacts) setWaContactsCount(data.contacts.filter((c: any) => !c.opted_out).length)
+                })
+        }
+    }, [restaurantInfo?.id])
 
     const handleTogglePlatform = (p: Platform) => {
         setSelectedPlatforms(prev => {
@@ -205,7 +230,7 @@ export default function CreatePostPage() {
                     if (!response.ok) throw new Error(`[GMB] ${data.error || 'Failed to schedule post'}`)
                 }
             }
-            const metaPlatforms = selectedPlatforms.filter(p => p !== 'gmb');
+            const metaPlatforms = selectedPlatforms.filter(p => ['facebook', 'instagram', 'whatsapp'].includes(p));
             if (metaPlatforms.length > 0) {
                 const response = await fetch('/api/meta/schedule', {
                     method: 'POST',
@@ -214,13 +239,14 @@ export default function CreatePostPage() {
                         platforms: metaPlatforms,
                         imageUrl: finalImageUrl,
                         caption: selectedCaption,
+                        whatsappCustomMessage: selectedPlatforms.includes('whatsapp') ? whatsappMessage : undefined,
                         scheduledTime: postDate.toISOString()
                     })
                 })
                 const data = await response.json()
-                if (!response.ok) throw new Error(`[Meta] ${data.error || 'Failed to schedule post'}`)
+                if (!response.ok) throw new Error(`[Meta/WA] ${data.error || 'Failed to schedule post'}`)
                 if (data.warnings?.length > 0) {
-                    setError(`⚠️ Partial success: Facebook posted, but Instagram failed — ${data.warnings.join(', ')}`)
+                    setError(`⚠️ Partial success: ${data.warnings.join(', ')}`)
                 }
             }
 
@@ -297,16 +323,25 @@ export default function CreatePostPage() {
                         <div className="mb-6">
                             <label className="text-sm font-medium mb-3 block">Select Platforms:</label>
                             <div className="flex flex-wrap gap-3">
-                                {(['instagram', 'facebook', 'gmb'] as Platform[]).map(p => {
+                                {(['instagram', 'facebook', 'gmb', 'whatsapp'] as Platform[]).map(p => {
                                     const isSelected = selectedPlatforms.includes(p);
+                                    let isDisabled = false;
+                                    let tooltip = '';
+                                    if (p === 'whatsapp') {
+                                        if (!waConnected) { isDisabled = true; tooltip = 'Connect WhatsApp in Settings first' }
+                                        else if (!waTemplateApproved) { isDisabled = true; tooltip = 'Message template pending Meta approval' }
+                                    }
 
                                     return (
-                                        <div key={p} className="relative group flex-1 min-w-[120px]">
+                                        <div key={p} className="relative group flex-1 min-w-[120px]" title={tooltip}>
                                             <button
+                                                disabled={isDisabled}
                                                 onClick={() => handleTogglePlatform(p)}
                                                 className={`w-full px-4 py-3 text-sm font-semibold rounded-lg border capitalize transition-all ${isSelected
                                                     ? 'bg-[#FF6B35] text-white border-[#FF6B35] shadow-md'
-                                                    : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
+                                                    : isDisabled
+                                                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
+                                                        : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
                                                     }`}
                                             >
                                                 {p === 'gmb' ? 'Google My Business' : p}
@@ -443,6 +478,24 @@ export default function CreatePostPage() {
                                     <p className="text-xs text-gray-500 mt-2">This dedicated short caption will be used when posting to Google.</p>
                                 </div>
                             )}
+
+                            {selectedPlatforms.includes('whatsapp') && (
+                                <div className="mt-6 pt-6 border-t">
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <p className="text-sm font-medium text-gray-700 flex items-center gap-2">📱 WhatsApp Override Message</p>
+                                        <span className="text-[10px] bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Optional</span>
+                                    </div>
+                                    <textarea
+                                        value={whatsappMessage}
+                                        onChange={(e) => setWhatsappMessage(e.target.value)}
+                                        placeholder="Leave blank to use the standard caption. This text replaces the {{2}} variable in your daily_special template."
+                                        className="w-full border rounded-lg p-3 text-sm focus:outline-none focus:border-[#FF6B35] min-h-[80px] bg-gray-50"
+                                    />
+                                    <p className="text-xs text-gray-500 mt-2">
+                                        Will be sent to <strong>{waContactsCount}</strong> opted-in contacts.
+                                    </p>
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -461,9 +514,9 @@ export default function CreatePostPage() {
                                     style={{
                                         background: p === 'instagram'
                                             ? 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)'
-                                            : p === 'facebook' ? '#1877f2' : '#34a853'
+                                            : p === 'facebook' ? '#1877f2' : p === 'whatsapp' ? '#25D366' : '#34a853'
                                     }}>
-                                    {p === 'gmb' ? 'GMB' : p === 'instagram' ? 'IG' : 'FB'}
+                                    {p === 'gmb' ? 'GMB' : p === 'instagram' ? 'IG' : p === 'whatsapp' ? 'WA' : 'FB'}
                                 </span>
                             ))}
                         </div>
@@ -623,40 +676,93 @@ export default function CreatePostPage() {
                         }
 
                         // === GMB ===
-                        return (
-                            <div className="border rounded-xl overflow-hidden bg-white max-w-[380px] mx-auto w-full shadow-sm">
-                                {/* GMB Google-style header */}
-                                <div className="bg-white px-4 pt-4 pb-3">
-                                    <div className="flex items-center gap-3 mb-3">
-                                        {logoEl}
-                                        <div className="flex-1">
-                                            <div className="font-bold text-[13px] text-gray-900 leading-tight">{name}</div>
-                                            <div className="text-[11px] text-yellow-500 leading-tight">★★★★★ <span className="text-gray-500">(124)</span></div>
-                                            <div className="text-[10px] text-gray-400">Restaurant · Dubai</div>
+                        if (selectedPlatforms.includes('gmb')) {
+                            return (
+                                <div className="border rounded-xl overflow-hidden bg-white max-w-[380px] mx-auto w-full shadow-sm mb-4">
+                                    {/* GMB Google-style header */}
+                                    <div className="bg-white px-4 pt-4 pb-3">
+                                        <div className="flex items-center gap-3 mb-3">
+                                            {logoEl}
+                                            <div className="flex-1">
+                                                <div className="font-bold text-[13px] text-gray-900 leading-tight">{name}</div>
+                                                <div className="text-[11px] text-yellow-500 leading-tight">★★★★★ <span className="text-gray-500">(124)</span></div>
+                                                <div className="text-[10px] text-gray-400">Restaurant · Dubai</div>
+                                            </div>
+                                            <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" className="w-6 h-6" />
                                         </div>
-                                        <img src="https://www.google.com/images/branding/googleg/1x/googleg_standard_color_128dp.png" className="w-6 h-6" />
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[11px] font-bold text-[#1a73e8] bg-blue-50 px-2 py-0.5 rounded-full">What's New</span>
+                                            <span className="text-[10px] text-gray-400">Just now</span>
+                                        </div>
                                     </div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-[11px] font-bold text-[#1a73e8] bg-blue-50 px-2 py-0.5 rounded-full">What's New</span>
-                                        <span className="text-[10px] text-gray-400">Just now</span>
+                                    {/* GMB 16:9 image */}
+                                    {mediaContent('aspect-video')}
+                                    <div className="p-4">
+                                        {caption ? (
+                                            <p className="text-[13px] text-gray-700 line-clamp-4">{caption}</p>
+                                        ) : <p className="text-[13px] text-gray-400 italic">Caption preview will appear here...</p>}
+                                        <button className="mt-3 text-[12px] font-semibold text-[#1a73e8] border border-[#1a73e8] rounded-md px-4 py-1.5">Learn more</button>
+                                    </div>
+                                    {/* GMB reactions */}
+                                    <div className="border-t px-4 py-2 flex gap-4">
+                                        {['👍 Like', '❤️ Love', '💬 Share'].map(a => (
+                                            <button key={a} className="text-[11px] text-gray-500 font-medium">{a}</button>
+                                        ))}
                                     </div>
                                 </div>
-                                {/* GMB 16:9 image */}
-                                {mediaContent('aspect-video')}
-                                <div className="p-4">
-                                    {caption ? (
-                                        <p className="text-[13px] text-gray-700 line-clamp-4">{caption}</p>
-                                    ) : <p className="text-[13px] text-gray-400 italic">Caption preview will appear here...</p>}
-                                    <button className="mt-3 text-[12px] font-semibold text-[#1a73e8] border border-[#1a73e8] rounded-md px-4 py-1.5">Learn more</button>
+                            )
+                        }
+
+                        // === WHATSAPP ===
+                        if (selectedPlatforms.includes('whatsapp')) {
+                            const waTemplateBody = `🍽️ Today's Special at ${name}!\n\n${whatsappMessage || caption || 'Your caption will go here...'}\n\nReply STOP to unsubscribe`;
+
+                            return (
+                                <div className="max-w-[360px] mx-auto w-full rounded-2xl overflow-hidden flex flex-col pt-12 items-end shadow-sm relative group bg-[#EFEAE2]">
+                                    {/* App-like Background wallpaper */}
+                                    <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: 'url("https://w0.peakpx.com/wallpaper/818/148/HD-wallpaper-whatsapp-background-solid-color-whatsapp-background-theme.jpg")', backgroundSize: 'cover' }}></div>
+
+                                    {/* Chat Header Fake */}
+                                    <div className="absolute top-0 left-0 right-0 h-14 bg-[#075E54] flex items-center px-3 gap-3 z-10 shadow-sm text-white">
+                                        <div className="w-6 text-white">&larr;</div>
+                                        <div className="w-8 h-8 bg-gray-300 rounded-full overflow-hidden flex-shrink-0">
+                                            {restaurantInfo?.logo_url ? <img src={restaurantInfo.logo_url} className="w-full h-full object-cover" /> : null}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <div className="font-semibold text-[15px] truncate leading-tight">{name}</div>
+                                            <div className="text-[11px] text-white/80">Business Account</div>
+                                        </div>
+                                    </div>
+
+                                    {/* The Chat Bubble */}
+                                    <div className="bg-white rounded-lg rounded-tl-sm shadow-sm m-4 mb-6 self-start max-w-[85%] relative z-10 p-1">
+                                        <div className="absolute top-0 -left-[10px] w-0 h-0 border-[10px] border-transparent border-t-white border-r-white"></div>
+
+                                        {/* Image Header */}
+                                        <div className="rounded overflow-hidden mb-2 border border-gray-100 bg-gray-100">
+                                            {mediaContent('aspect-square')}
+                                        </div>
+
+                                        {/* Template Body */}
+                                        <div className="px-1.5 pb-2">
+                                            <div className="text-[14px] text-gray-800 whitespace-pre-wrap leading-snug">{waTemplateBody}</div>
+                                            <div className="flex items-center justify-end gap-1 mt-1 -mb-1">
+                                                <span className="text-[10px] text-gray-400">12:00 PM</span>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
-                                {/* GMB reactions */}
-                                <div className="border-t px-4 py-2 flex gap-4">
-                                    {['👍 Like', '❤️ Love', '💬 Share'].map(a => (
-                                        <button key={a} className="text-[11px] text-gray-500 font-medium">{a}</button>
-                                    ))}
-                                </div>
+                            )
+                        }
+
+                        // Default empty state
+                        return (
+                            <div className="border-[2px] border-dashed border-gray-200 rounded-xl max-w-[360px] mx-auto w-full aspect-[4/5] flex items-center justify-center text-gray-400 bg-gray-50 flex-col gap-2 shadow-sm">
+                                <LayoutTemplate size={32} className="opacity-50" />
+                                <span className="text-sm font-medium">Select a platform to preview</span>
                             </div>
                         )
+
                     })()}
 
 

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 import { createGMBPost, getValidGmbToken } from '@/lib/gmb'
 import { publishToFacebook, publishToInstagram } from '@/lib/meta'
+import { uploadMediaToWhatsApp, broadcastWhatsappMessage } from '@/lib/whatsapp'
 
 export const dynamic = 'force-dynamic'
 
@@ -98,6 +99,92 @@ export async function GET(req: Request) {
                         .eq('id', post.id)
 
                     processed++
+                }
+
+                // === WHATSAPP ===
+                if (post.platforms && post.platforms.includes('whatsapp')) {
+                    // Fetch the WhatsApp account credentials from connected_accounts
+                    const { data: waAccount } = await supabase
+                        .from('connected_accounts')
+                        .select('whatsapp_access_token, whatsapp_phone_number_id, whatsapp_business_account_id, restaurants(name, phone, address)')
+                        .eq('restaurant_id', post.restaurant_id)
+                        .eq('platform', 'facebook')
+                        .single()
+
+                    if (!waAccount || !waAccount.whatsapp_access_token || !waAccount.whatsapp_phone_number_id) {
+                        console.warn(`[CRON_WA] WhatsApp not connected for post ${post.id}, skipping.`)
+                    } else {
+                        // Fetch contacts that have not opted out
+                        const { data: contacts } = await supabase
+                            .from('contacts')
+                            .select('phone_number')
+                            .eq('restaurant_id', post.restaurant_id)
+                            .eq('opted_out', false)
+
+                        if (!contacts || contacts.length === 0) {
+                            console.log(`[CRON_WA] No opted-in contacts for restaurant ${post.restaurant_id}`)
+                        } else {
+                            // Count how many messages already sent today to enforce 1000/day limit
+                            const todayStart = new Date()
+                            todayStart.setHours(0, 0, 0, 0)
+
+                            const { data: todaysPosts } = await supabase
+                                .from('posts')
+                                .select('whatsapp_delivered_count')
+                                .eq('restaurant_id', post.restaurant_id)
+                                .gte('published_at', todayStart.toISOString())
+                                .not('whatsapp_delivered_count', 'is', null)
+
+                            const alreadySentToday = todaysPosts?.reduce((sum: number, p: any) => sum + (p.whatsapp_delivered_count || 0), 0) || 0
+
+                            // Upload image to WhatsApp media hosting
+                            const mediaId = await uploadMediaToWhatsApp(
+                                waAccount.whatsapp_phone_number_id,
+                                waAccount.whatsapp_access_token,
+                                post.poster_url
+                            )
+
+                            // Get restaurant info for template variables
+                            const restaurant = (waAccount as any).restaurants
+                            const restaurantName = restaurant?.name || 'Our Restaurant'
+                            const restaurantPhone = restaurant?.phone || ''
+                            const restaurantAddress = restaurant?.address || ''
+                            const customMessage = post.whatsapp_custom_message || post.selected_caption || ''
+
+                            // Broadcast to all eligible contacts
+                            const { sent, failed, skipped } = await broadcastWhatsappMessage(
+                                waAccount.whatsapp_phone_number_id,
+                                waAccount.whatsapp_access_token,
+                                contacts,
+                                mediaId,
+                                restaurantName,
+                                customMessage,
+                                alreadySentToday,
+                                restaurantPhone,
+                                restaurantAddress
+                            )
+
+                            console.log(`[CRON_WA] Post ${post.id}: sent=${sent}, failed=${failed}, skipped=${skipped}`)
+
+                            // Update delivery stats on the post
+                            await supabase
+                                .from('posts')
+                                .update({
+                                    whatsapp_delivered_count: sent,
+                                    whatsapp_failed_count: failed
+                                })
+                                .eq('id', post.id)
+                        }
+
+                        // Mark post as published (if it isn't already from Meta publishing above)
+                        await supabase
+                            .from('posts')
+                            .update({ status: 'published', published_at: new Date().toISOString() })
+                            .eq('id', post.id)
+                            .eq('status', 'scheduled') // Only if not already published
+
+                        processed++
+                    }
                 }
             } catch (err: any) {
                 console.error(`[CRON_POST_ERROR] Post ${post.id}:`, err)
