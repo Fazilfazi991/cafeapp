@@ -110,37 +110,14 @@ export async function GET(req: Request) {
                 // If error is Meta Token related (e.g. OAuthException from FB/IG API)
                 const errorString = err.message || '';
                 if (errorString.toLowerCase().includes('oauth') || errorString.toLowerCase().includes('token') || errorString.toLowerCase().includes('disconnected') || errorString.toLowerCase().includes('session has been invalidated')) {
-                    // Fetch restaurant email
-                    const { data: rest } = await supabase
-                        .from('restaurants')
-                        .select('email, name')
-                        .eq('id', post.restaurant_id)
-                        .single()
+                    // Flag the account as disconnected so the dashboard banner shows up
+                    await supabase
+                        .from('connected_accounts')
+                        .update({ is_active: false })
+                        .eq('restaurant_id', post.restaurant_id)
+                        .eq('platform', 'facebook')
 
-                    if (rest && rest.email && process.env.RESEND_API_KEY) {
-                        try {
-                            const { Resend } = require('resend');
-                            const resend = new Resend(process.env.RESEND_API_KEY);
-
-                            await resend.emails.send({
-                                from: 'PostChef <notifications@postchef.app>', // Change to verified domain later
-                                to: rest.email,
-                                subject: `Action Required: Reconnect Meta for ${rest.name}`,
-                                html: `
-                                    <h2>Your scheduled post failed to publish</h2>
-                                    <p>Hi there,</p>
-                                    <p>We tried to publish a scheduled post for <strong>${post.dish_name || 'your dish'}</strong>, but your Facebook/Instagram connection has expired or been revoked.</p>
-                                    <p>Please log in to your PostChef dashboard and reconnect your Meta accounts on the settings page to resume scheduled posting.</p>
-                                    <br/>
-                                    <p>Thanks,</p>
-                                    <p>The PostChef Team</p>
-                                `
-                            });
-                            console.log(`[CRON] Sent expiry email alert to ${rest.email}`)
-                        } catch (emailErr) {
-                            console.error('[CRON] Failed to send email alert:', emailErr)
-                        }
-                    }
+                    console.log(`[CRON] Flagged Meta account as disconnected for restaurant ${post.restaurant_id}`)
                 }
             }
         }

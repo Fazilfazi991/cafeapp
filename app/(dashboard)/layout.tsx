@@ -17,7 +17,7 @@ export default async function DashboardLayout({
 
     const { data: restaurants } = await supabase
         .from('restaurants')
-        .select('plan, plan_end_date')
+        .select('id, plan, plan_end_date')
         .eq('user_id', user.id)
         .limit(1)
 
@@ -25,6 +25,7 @@ export default async function DashboardLayout({
 
     let isExpired = false
     let daysRemaining = 999
+    let metaDisconnected = false
 
     if (restaurant) {
         if (restaurant.plan === 'expired') {
@@ -37,6 +38,25 @@ export default async function DashboardLayout({
 
             if (daysRemaining <= 0) {
                 isExpired = true
+            }
+        }
+
+        // Fetch Meta Account status
+        const { data: metaAccount } = await supabase
+            .from('connected_accounts')
+            .select('is_active, meta_token_expires_at')
+            .eq('restaurant_id', restaurant.id)
+            .eq('platform', 'facebook')
+            .maybeSingle()
+
+        if (metaAccount) {
+            if (metaAccount.is_active === false) {
+                metaDisconnected = true
+            } else if (metaAccount.meta_token_expires_at) {
+                const expiryDate = new Date(metaAccount.meta_token_expires_at)
+                if (expiryDate <= new Date()) {
+                    metaDisconnected = true
+                }
             }
         }
     }
@@ -117,6 +137,14 @@ export default async function DashboardLayout({
                         <AlertTriangle size={16} className="text-yellow-600" />
                         Your plan expires in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}. Please contact us to renew your subscription.
                     </div>
+                )}
+
+                {/* Meta Expiry Warning Banner */}
+                {metaDisconnected && (
+                    <Link href="/dashboard/settings" className="block bg-red-50 border-b border-red-200 px-8 py-3 flex items-center gap-3 text-red-800 text-sm font-medium hover:bg-red-100 transition-colors">
+                        <AlertTriangle size={16} className="text-red-600 shrink-0" />
+                        Your Facebook/Instagram connection has expired or been disconnected. Click here to reconnect in Settings.
+                    </Link>
                 )}
 
                 <main className="p-4 md:p-8 flex-1 pb-24 md:pb-8">
