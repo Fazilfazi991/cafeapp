@@ -22,6 +22,7 @@
     "react": "^18",
     "react-dom": "^18",
     "replicate": "^1.4.0",
+    "resend": "^6.9.3",
     "sharp": "^0.34.5"
   },
   "devDependencies": {

@@ -18,10 +18,10 @@ export async function GET(request: Request) {
         const supabase = createClient()
 
         // 1. Exchange OAuth code for a long-lived User Access Token
-        const userAccessToken = await exchangeCodeForTokens(code)
+        const userTokenData = await exchangeCodeForTokens(code)
 
         // 2. Fetch the Facebook Pages and attached Instagram accounts
-        const pages = await getMetaAccounts(userAccessToken)
+        const pages = await getMetaAccounts(userTokenData.accessToken)
 
         if (pages.length === 0) {
             return NextResponse.redirect(new URL('/dashboard/settings?error=no_facebook_pages_found', request.url))
@@ -29,6 +29,10 @@ export async function GET(request: Request) {
 
         // For simplicity, we just take the first FB page the user authorized
         const targetPage = pages[0]
+
+        // Calculate expiration date (usually 60 days from now)
+        const expiresInMs = (userTokenData.expiresIn || 5184000) * 1000;
+        const expiresAt = new Date(Date.now() + expiresInMs).toISOString();
 
         // 3. Check if an existing Meta connected_account exists
         const { data: existingAccount } = await supabase
@@ -40,6 +44,8 @@ export async function GET(request: Request) {
 
         const payload = {
             meta_access_token: targetPage.access_token,
+            meta_user_access_token: userTokenData.accessToken,
+            meta_token_expires_at: expiresAt,
             meta_page_id: targetPage.id,
             meta_ig_id: targetPage.meta_ig_id,
             meta_pages_json: pages, // Save ALL pages so user can pick later

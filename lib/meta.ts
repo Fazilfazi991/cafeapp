@@ -75,7 +75,10 @@ export async function exchangeCodeForTokens(code: string) {
     }
 
     const longLivedData = await longLivedResponse.json();
-    return longLivedData.access_token;
+    return {
+        accessToken: longLivedData.access_token,
+        expiresIn: longLivedData.expires_in // Usually ~5184000 seconds (60 days)
+    };
 }
 
 /**

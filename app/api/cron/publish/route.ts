@@ -96,7 +96,7 @@ export async function GET(req: Request) {
                             published_at: new Date().toISOString()
                         })
                         .eq('id', post.id)
-                        
+
                     processed++
                 }
             } catch (err: any) {
@@ -106,6 +106,42 @@ export async function GET(req: Request) {
                     .from('posts')
                     .update({ status: 'failed' })
                     .eq('id', post.id)
+
+                // If error is Meta Token related (e.g. OAuthException from FB/IG API)
+                const errorString = err.message || '';
+                if (errorString.toLowerCase().includes('oauth') || errorString.toLowerCase().includes('token') || errorString.toLowerCase().includes('disconnected') || errorString.toLowerCase().includes('session has been invalidated')) {
+                    // Fetch restaurant email
+                    const { data: rest } = await supabase
+                        .from('restaurants')
+                        .select('email, name')
+                        .eq('id', post.restaurant_id)
+                        .single()
+
+                    if (rest && rest.email && process.env.RESEND_API_KEY) {
+                        try {
+                            const { Resend } = require('resend');
+                            const resend = new Resend(process.env.RESEND_API_KEY);
+
+                            await resend.emails.send({
+                                from: 'PostChef <notifications@postchef.app>', // Change to verified domain later
+                                to: rest.email,
+                                subject: `Action Required: Reconnect Meta for ${rest.name}`,
+                                html: `
+                                    <h2>Your scheduled post failed to publish</h2>
+                                    <p>Hi there,</p>
+                                    <p>We tried to publish a scheduled post for <strong>${post.dish_name || 'your dish'}</strong>, but your Facebook/Instagram connection has expired or been revoked.</p>
+                                    <p>Please log in to your PostChef dashboard and reconnect your Meta accounts on the settings page to resume scheduled posting.</p>
+                                    <br/>
+                                    <p>Thanks,</p>
+                                    <p>The PostChef Team</p>
+                                `
+                            });
+                            console.log(`[CRON] Sent expiry email alert to ${rest.email}`)
+                        } catch (emailErr) {
+                            console.error('[CRON] Failed to send email alert:', emailErr)
+                        }
+                    }
+                }
             }
         }
 
