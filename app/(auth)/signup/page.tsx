@@ -17,7 +17,8 @@ export default function Signup({ searchParams }: { searchParams: { message: stri
             email,
             password,
             options: {
-                emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
+                // We must use origin here, ensuring we fallback appropriately if NEXT_PUBLIC_APP_URL is missing on Vercel
+                emailRedirectTo: `${origin}/api/auth/callback`,
             },
         })
 
