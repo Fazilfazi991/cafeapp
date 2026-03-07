@@ -11,10 +11,6 @@
         {
             "path": "/api/cron/whatsapp-template",
             "schedule": "30 8 * * *"
-        },
-        {
-            "path": "/api/cron/boost-stats",
-            "schedule": "0 */6 * * *"
         }
     ]
 }
