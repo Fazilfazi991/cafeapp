@@ -322,7 +322,7 @@ export default function CreatePostPage() {
 
                         <div className="mb-6">
                             <label className="text-sm font-medium mb-3 block">Select Platforms:</label>
-                            <div className="flex flex-wrap gap-3">
+                            <div className="grid grid-cols-2 gap-3">
                                 {(['instagram', 'facebook', 'gmb', 'whatsapp'] as Platform[]).map(p => {
                                     const isSelected = selectedPlatforms.includes(p);
                                     let isDisabled = false;
@@ -332,24 +332,35 @@ export default function CreatePostPage() {
                                         else if (!waTemplateApproved) { isDisabled = true; tooltip = 'Message template pending Meta approval' }
                                     }
 
+                                    const label = p === 'gmb' ? 'Google My Business'
+                                        : p === 'whatsapp' ? 'WhatsApp 📱'
+                                        : p === 'instagram' ? 'Instagram'
+                                        : 'Facebook';
+
                                     return (
-                                        <div key={p} className="relative group flex-1 min-w-[120px]" title={tooltip}>
+                                        <div key={p} title={tooltip}>
                                             <button
                                                 disabled={isDisabled}
                                                 onClick={() => handleTogglePlatform(p)}
-                                                className={`w-full px-4 py-3 text-sm font-semibold rounded-lg border capitalize transition-all ${isSelected
+                                                className={`w-full px-4 py-3 text-sm font-semibold rounded-lg border transition-all ${isSelected
                                                     ? 'bg-[#FF6B35] text-white border-[#FF6B35] shadow-md'
                                                     : isDisabled
                                                         ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                                                         : 'bg-white text-gray-700 hover:bg-gray-50 border-gray-200'
                                                     }`}
                                             >
-                                                {p === 'gmb' ? 'Google My Business' : p}
+                                                {label}
                                             </button>
                                         </div>
                                     );
                                 })}
                             </div>
+                            {!waConnected && (
+                                <p className="text-xs text-gray-400 mt-2">
+                                    💡 <span className="font-medium">WhatsApp</span> is available once you connect it in{' '}
+                                    <a href="/dashboard/settings" className="text-[#FF6B35] hover:underline">Settings</a>.
+                                </p>
+                            )}
                         </div>
 
                         <div className="mb-6">
