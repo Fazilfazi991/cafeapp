@@ -17,7 +17,7 @@ export default function Signup({ searchParams }: { searchParams: { message: stri
             email,
             password,
             options: {
-                emailRedirectTo: `${origin}/api/auth/callback`,
+                emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/api/auth/callback`,
             },
         })
 
