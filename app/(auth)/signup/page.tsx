@@ -8,7 +8,10 @@ export default function Signup({ searchParams }: { searchParams: { message: stri
     const signUp = async (formData: FormData) => {
         'use server'
 
-        const origin = headers().get('origin')
+        const host = headers().get('host')
+        const protocol = host?.includes('localhost') ? 'http' : 'https'
+        const siteUrl = process.env.NEXT_PUBLIC_APP_URL || `${protocol}://${host}`
+        
         const email = formData.get('email') as string
         const password = formData.get('password') as string
         const supabase = createClient()
@@ -17,8 +20,7 @@ export default function Signup({ searchParams }: { searchParams: { message: stri
             email,
             password,
             options: {
-                // We must use origin here, ensuring we fallback appropriately if NEXT_PUBLIC_APP_URL is missing on Vercel
-                emailRedirectTo: `${origin}/api/auth/callback`,
+                emailRedirectTo: `${siteUrl}/api/auth/callback`,
             },
         })
 
