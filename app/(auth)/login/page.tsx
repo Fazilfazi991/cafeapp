@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
 import Link from 'next/link'
+import SubmitButton from '@/components/settings/SubmitButton'
 
 export default function Login({ searchParams }: { searchParams: { message: string } }) {
     const signIn = async (formData: FormData) => {
@@ -52,9 +53,11 @@ export default function Login({ searchParams }: { searchParams: { message: strin
                     required
                 />
 
-                <button className="bg-[#FF6B35] rounded-md px-4 py-2 text-white mb-2 font-medium hover:bg-orange-600 transition-colors">
-                    Sign In
-                </button>
+                <SubmitButton
+                    text="Sign In"
+                    loadingText="Signing in..."
+                    className="bg-[#FF6B35] rounded-md px-4 py-2 text-white mb-2 font-medium hover:bg-orange-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-70"
+                />
 
                 {searchParams?.message && (
                     <p className={`mt-4 p-4 text-center rounded-md text-sm ${searchParams.message.toLowerCase().includes('success') ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>

@@ -39,7 +39,6 @@ export default async function Step1() {
                     name,
                     cuisine_type,
                     city,
-                    branches,
                     website: website || null,
                     phone: phone || null,
                 })
@@ -54,7 +53,6 @@ export default async function Step1() {
                     business_type: 'restaurant',
                     cuisine_type,
                     city,
-                    branches,
                     website: website || null,
                     phone: phone || null,
                 })
