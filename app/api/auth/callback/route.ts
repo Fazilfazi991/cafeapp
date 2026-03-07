@@ -34,8 +34,8 @@ export async function GET(request: Request) {
         )
         const { error } = await supabase.auth.exchangeCodeForSession(code)
         if (!error) {
-            // Redirect to login page with a success message so the user knows they are verified.
-            return NextResponse.redirect(`${origin}/login?message=Registration successful! Please login to access your account.`)
+            // Redirect to welcome page so the user knows they are verified.
+            return NextResponse.redirect(`${origin}/welcome`)
         }
     }
 
