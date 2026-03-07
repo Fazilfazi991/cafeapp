@@ -158,6 +158,7 @@ export default async function Step1() {
                     loadingText="Saving..."
                     className="bg-[#1A1A1A] text-white rounded-md px-4 py-3 mt-4 font-medium hover:bg-gray-800 transition-colors w-full flex items-center justify-center gap-2 disabled:opacity-70"
                 />
+            </form>
         </div>
     )
 }
