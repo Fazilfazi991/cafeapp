@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import SubmitButton from '@/components/settings/SubmitButton'
 
 export default async function Step2() {
     const supabase = createClient()
@@ -31,32 +32,41 @@ export default async function Step2() {
         const primary_color = formData.get('primary_color') as string
         const logo_url = formData.get('logo_url') as string // we'll skip actual file upload for this MVP step
 
-        // Calculate 30 day trial dates
-        const now = new Date()
-        const thirtyDaysFromNow = new Date()
-        thirtyDaysFromNow.setDate(now.getDate() + 30)
+        try {
+            // Calculate 30 day trial dates
+            const now = new Date()
+            const thirtyDaysFromNow = new Date()
+            thirtyDaysFromNow.setDate(now.getDate() + 30)
 
-        // 2. Update restaurant tone, mark onboarding complete, and set trial plan
-        await supabase
-            .from('restaurants')
-            .update({
-                tone_of_voice,
-                onboarding_complete: true,
-                plan: 'active',
-                plan_start_date: now.toISOString(),
-                plan_end_date: thirtyDaysFromNow.toISOString()
-            })
-            .eq('id', restaurant.id)
+            // 2. Update restaurant tone, mark onboarding complete, and set trial plan
+            const { error: updateError } = await supabase
+                .from('restaurants')
+                .update({
+                    tone_of_voice,
+                    onboarding_complete: true,
+                    plan: 'active',
+                    plan_start_date: now.toISOString(),
+                    plan_end_date: thirtyDaysFromNow.toISOString()
+                })
+                .eq('id', restaurant.id)
+                
+            if (updateError) console.error('[ONBOARDING_UPDATE_ERR]', updateError)
 
-        // 3. Insert brand settings
-        await supabase
-            .from('brand_settings')
-            .insert({
-                restaurant_id: restaurant.id,
-                primary_color,
-                logo_url: logo_url || null,
-                font_style: 'modern'
-            })
+            // 3. Upsert brand settings
+            const { error: insertError } = await supabase
+                .from('brand_settings')
+                .upsert({
+                    restaurant_id: restaurant.id,
+                    primary_color,
+                    logo_url: logo_url || null,
+                    font_style: 'modern'
+                }, { onConflict: 'restaurant_id' })
+
+            if (insertError) console.error('[ONBOARDING_INSERT_ERR]', insertError)
+
+        } catch (err) {
+            console.error('[ONBOARDING_FATAL_ERR]', err)
+        }
 
         redirect('/dashboard')
     }
@@ -105,9 +115,11 @@ export default async function Step2() {
                     </div>
                 </div>
 
-                <button className="bg-[#1A1A1A] text-white rounded-md px-4 py-3 mt-4 font-medium hover:bg-gray-800 transition-colors w-full">
-                    Complete Setup & Go to Dashboard
-                </button>
+                <SubmitButton 
+                    text="Complete Setup & Go to Dashboard"
+                    loadingText="Completing Setup..."
+                    className="bg-[#1A1A1A] text-white rounded-md px-4 py-3 mt-4 font-medium hover:bg-gray-800 transition-colors w-full flex items-center justify-center gap-2 disabled:opacity-70"
+                />
             </form>
         </div>
     )
