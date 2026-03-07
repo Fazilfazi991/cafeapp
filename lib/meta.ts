@@ -3,31 +3,41 @@ import { createClient } from '@/lib/supabase-server';
 /**
  * Generate the OAuth URL to redirect the user to Meta
  */
-export function getAuthUrl(restaurantId: string): string {
+export function getAuthUrl(restaurantId: string, type: 'page' | 'ad' = 'page'): string {
     const META_CLIENT_ID = process.env.META_CLIENT_ID!;
     const META_REDIRECT_URI = process.env.META_REDIRECT_URI!;
 
-    const scopes = [
+    const baseScopes = [
         'pages_show_list',
         'pages_read_engagement',
         'pages_manage_posts',
         'business_management',
         'instagram_basic',
         'instagram_content_publish'
-    ].join(',');
+    ];
+
+    if (type === 'ad') {
+        baseScopes.push('ads_management');
+        baseScopes.push('ads_read');
+    }
+
+    const scopes = baseScopes.join(',');
+
+    // Encode the type into the state parameter
+    const stateValue = type === 'ad' ? `${restaurantId}_ad` : restaurantId;
 
     const params = new URLSearchParams({
         client_id: META_CLIENT_ID,
         redirect_uri: META_REDIRECT_URI,
-        state: restaurantId,
+        state: stateValue,
         response_type: 'code',
         scope: scopes,
     });
 
-    const url = `https://www.facebook.com/v19.0/dialog/oauth?${params.toString()}`;
+    const url = `https://www.facebook.com/v20.0/dialog/oauth?${params.toString()}`;
 
     // Explicitly requested by user: Console log the URL so they can verify the exact redirect_uri matches
-    console.log('[META API] Generated OAuth URL:', url);
+    console.log(`[META API] Generated OAuth URL (Type: ${type}):`, url);
     console.log('[META API] Expected Redirect URI:', META_REDIRECT_URI);
 
     return url;
@@ -174,4 +184,18 @@ export async function publishToInstagram(igUserId: string, userAccessToken: stri
     }
 
     return await publishResponse.json(); // returns { id: "ig_media_id" }
+}
+
+/**
+ * Fetch the connected User's Facebook Ad Accounts
+ */
+export async function getMetaAdAccounts(userAccessToken: string) {
+    const response = await fetch(`https://graph.facebook.com/v20.0/me/adaccounts?fields=name,currency,account_id,id&limit=100&access_token=${userAccessToken}`);
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to fetch Facebook Ad Accounts: ${errorText}`);
+    }
+
+    const data = await response.json();
+    return data.data || [];
 }

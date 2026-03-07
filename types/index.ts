@@ -38,6 +38,10 @@ export interface ConnectedAccount {
   google_refresh_token?: string;
   gmb_account_id?: string;
   gmb_location_id?: string;
+  ad_account_id?: string;
+  ad_account_name?: string;
+  ad_account_currency?: string;
+  ad_accounts_json?: any;
   connected_at: string;
   is_active: boolean;
 }
@@ -65,6 +69,13 @@ export interface Post {
   published_at?: string;
   gmb_post_id?: string;
   post_type: 'image' | 'video';
+  boost_campaign_id?: string;
+  boost_ad_id?: string;
+  boost_budget?: number;
+  boost_duration_days?: number;
+  boost_status?: 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'FAILED' | string;
+  boost_reach?: number;
+  boost_spend?: number;
   created_at: string;
 }
 

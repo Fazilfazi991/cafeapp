@@ -1,55 +1,85 @@
 import { createClient } from '@/lib/supabase-server'
-import { exchangeCodeForTokens, getMetaAccounts } from '@/lib/meta'
+import { exchangeCodeForTokens, getMetaAccounts, getMetaAdAccounts } from '@/lib/meta'
 import { NextResponse } from 'next/server'
 
 export async function GET(request: Request) {
     try {
         const url = new URL(request.url)
         const code = url.searchParams.get('code')
-        const state = url.searchParams.get('state') // This is the restaurantId mapped via state param
+        const stateParam = url.searchParams.get('state') // This is the restaurantId mapped via state param
         const error = url.searchParams.get('error')
 
-        if (error || !code || !state) {
+        if (error || !code || !stateParam) {
             console.error('[META_CALLBACK_ERROR] Missing valid code or state', { error })
             return NextResponse.redirect(new URL('/dashboard/settings?error=meta_auth_failed', request.url))
         }
 
-        const restaurantId = state
+        // Check if state has _ad suffix indicating Ad connection
+        const isAdConnection = stateParam.endsWith('_ad');
+        const restaurantId = isAdConnection ? stateParam.replace('_ad', '') : stateParam;
+        
         const supabase = createClient()
 
         // 1. Exchange OAuth code for a long-lived User Access Token
         const userTokenData = await exchangeCodeForTokens(code)
 
-        // 2. Fetch the Facebook Pages and attached Instagram accounts
-        const pages = await getMetaAccounts(userTokenData.accessToken)
-
-        if (pages.length === 0) {
-            return NextResponse.redirect(new URL('/dashboard/settings?error=no_facebook_pages_found', request.url))
-        }
-
-        // For simplicity, we just take the first FB page the user authorized
-        const targetPage = pages[0]
-
         // Calculate expiration date (usually 60 days from now)
         const expiresInMs = (userTokenData.expiresIn || 5184000) * 1000;
         const expiresAt = new Date(Date.now() + expiresInMs).toISOString();
 
-        // 3. Check if an existing Meta connected_account exists
+        // Check if an existing Meta connected_account exists
         const { data: existingAccount } = await supabase
             .from('connected_accounts')
-            .select('id')
+            .select('*')
             .eq('restaurant_id', restaurantId)
             .eq('platform', 'facebook')
             .maybeSingle()
 
-        const payload = {
-            meta_access_token: targetPage.access_token,
+        let payload: any = {
             meta_user_access_token: userTokenData.accessToken,
             meta_token_expires_at: expiresAt,
-            meta_page_id: targetPage.id,
-            meta_ig_id: targetPage.meta_ig_id,
-            meta_pages_json: pages, // Save ALL pages so user can pick later
             is_active: true
+        }
+
+        if (isAdConnection) {
+            // Fetch Ad Accounts
+            const adAccounts = await getMetaAdAccounts(userTokenData.accessToken);
+            if (adAccounts.length === 0) {
+                // Not returning error because maybe they don't have ad accounts but it's fine, we just update the token
+                console.warn('[META_CALLBACK] No Ad accounts found for this user.');
+            }
+            
+            payload = {
+                ...payload,
+                ad_accounts_json: adAccounts
+            }
+            
+            // If they have ad accounts, safely auto-select the first one for convenience 
+            if (adAccounts.length > 0) {
+                payload.ad_account_id = adAccounts[0].id;
+                payload.ad_account_name = adAccounts[0].name;
+                payload.ad_account_currency = adAccounts[0].currency;
+            }
+
+        } else {
+            // Fetch the Facebook Pages and attached Instagram accounts
+            const pages = await getMetaAccounts(userTokenData.accessToken)
+            
+            if (pages.length === 0 && !existingAccount) {
+                return NextResponse.redirect(new URL('/dashboard/settings?error=no_facebook_pages_found', request.url))
+            }
+            
+            const targetPage = pages.length > 0 ? pages[0] : null;
+
+            if (targetPage) {
+                payload = {
+                    ...payload,
+                    meta_access_token: targetPage.access_token,
+                    meta_page_id: targetPage.id,
+                    meta_ig_id: targetPage.meta_ig_id,
+                    meta_pages_json: pages,
+                }
+            }
         }
 
         if (existingAccount) {

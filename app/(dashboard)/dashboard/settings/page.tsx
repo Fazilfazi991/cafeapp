@@ -145,6 +145,52 @@ export default async function SettingsPage() {
                         })()}
                     </div>
 
+                    <div className="mb-8 pt-6 mt-6 border-t border-gray-100">
+                        <h3 className="font-semibold text-[#1A1A1A] mb-3 flex items-center gap-2">📈 Facebook Ad Account</h3>
+
+                        {(() => {
+                            const metaAccount = restaurant.connected_accounts?.find((a: any) => a.platform === 'facebook');
+
+                            if (metaAccount && metaAccount.ad_account_id) {
+                                return (
+                                    <div className="border rounded-lg p-5 bg-gray-50 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
+                                        <div>
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="font-medium text-[#1A1A1A] text-sm">Ad Account Connected</span>
+                                                <span className="text-xs font-semibold px-2 py-0.5 bg-green-100 text-green-700 rounded-full flex items-center gap-1">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Active
+                                                </span>
+                                            </div>
+                                            <p className="text-sm font-medium text-gray-800">
+                                                {metaAccount.ad_account_name} <span className="text-gray-500 font-normal">({metaAccount.ad_account_currency})</span>
+                                            </p>
+                                        </div>
+                                        <form action="/api/meta/disconnect-ad" method="POST">
+                                            <button className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-transparent hover:border-red-100">
+                                                Disconnect Ad Account
+                                            </button>
+                                        </form>
+                                    </div>
+                                );
+                            }
+
+                            return (
+                                <div className="border rounded-lg p-5">
+                                    <p className="text-sm text-gray-600 mb-4">Connect your Facebook Ad Account to easily boost successful posts and reach a wider audience locally.</p>
+
+                                    <form action="/api/meta/connect">
+                                        <input type="hidden" name="type" value="ad" />
+                                        <button
+                                            className="bg-[#000000] text-white border-transparent border rounded-md px-4 py-2 text-sm font-medium hover:bg-gray-800 transition-colors w-full sm:w-auto flex items-center justify-center gap-2"
+                                        >
+                                            ⚡ Connect Ad Account
+                                        </button>
+                                    </form>
+                                </div>
+                            );
+                        })()}
+                    </div>
+
                     <div className="pt-6 mt-6 border-t border-gray-100">
                         <h3 className="font-semibold text-[#1A1A1A] mb-3 flex items-center gap-2">📱 WhatsApp Business</h3>
                         <WhatsappConnectManager

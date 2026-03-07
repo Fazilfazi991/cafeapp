@@ -6,6 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
     try {
+        const url = new URL(request.url)
+        const type = url.searchParams.get('type') === 'ad' ? 'ad' : 'page';
+        
         const supabase = createClient()
         const { data: { user } } = await supabase.auth.getUser()
 
@@ -26,7 +29,7 @@ export async function GET(request: Request) {
 
         // Generate the URL and redirect
         // getAuthUrl handles the console.log of the redirect_uri explicitly requested by the user
-        const authUrl = getAuthUrl(restaurant.id)
+        const authUrl = getAuthUrl(restaurant.id, type)
         return NextResponse.redirect(authUrl)
 
     } catch (error) {
