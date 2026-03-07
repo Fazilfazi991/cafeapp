@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import { headers } from 'next/headers'
+import Link from 'next/link'
 
 export default function Login({ searchParams }: { searchParams: { message: string } }) {
     const signIn = async (formData: FormData) => {
@@ -61,6 +62,12 @@ export default function Login({ searchParams }: { searchParams: { message: strin
                     </p>
                 )}
             </form>
+            <p className="mt-6 text-center text-xs text-gray-400">
+                By continuing you agree to our{' '}
+                <Link href="/terms" className="text-gray-500 underline hover:text-[#1A1A1A] transition-colors">Terms of Service</Link>
+                {' '}and{' '}
+                <Link href="/privacy" className="text-gray-500 underline hover:text-[#1A1A1A] transition-colors">Privacy Policy</Link>.
+            </p>
         </div>
     )
 }

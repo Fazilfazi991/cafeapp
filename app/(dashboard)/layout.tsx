@@ -157,11 +157,19 @@ export default async function DashboardLayout({
             <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-[#1A1A1A] text-white flex items-center justify-around h-16 z-50 border-t border-gray-800">
                 {navLinks.map(({ href, icon: Icon, label }) => (
                     <Link key={href} href={href} className="flex flex-col items-center justify-center gap-0.5 px-3 py-2 text-gray-400 hover:text-white transition-colors">
-                        <Icon size={20} />
-                        <span className="text-[10px] font-medium">{label}</span>
+                <span className="text-[10px] font-medium">{label}</span>
                     </Link>
                 ))}
             </nav>
+
+            {/* Legal footer — desktop only, sits above mobile nav */}
+            <div className="hidden md:block fixed bottom-0 left-0 w-64 border-t border-gray-800 bg-[#1A1A1A] px-4 py-3">
+                <div className="flex items-center gap-3 text-[11px] text-gray-500">
+                    <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300 transition-colors">Privacy Policy</Link>
+                    <span>·</span>
+                    <Link href="/terms" target="_blank" rel="noopener noreferrer" className="hover:text-gray-300 transition-colors">Terms</Link>
+                </div>
+            </div>
         </div>
     )
 }
