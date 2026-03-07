@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { X, Target, Users, Globe, Image as ImageIcon, Loader2 } from 'lucide-react'
 import { Post } from '@/types'
 
@@ -17,6 +17,19 @@ export default function BoostModal({ post, isOpen, onClose, onSuccess, adAccount
     const [radius, setRadius] = useState<number>(5)
     const [budget, setBudget] = useState<number>(20)
     const [durationDays, setDurationDays] = useState<number>(7)
+    
+    // Call To Action State
+    const [ctaType, setCtaType] = useState<string>('CALL_NOW')
+    const defaultPhone = post.restaurants?.phone || ''
+    const defaultWebsite = post.restaurants?.brand_settings?.[0]?.website_url || ''
+    const [ctaValue, setCtaValue] = useState<string>(defaultPhone)
+
+    useEffect(() => {
+        if (ctaType === 'CALL_NOW') setCtaValue(defaultPhone)
+        else if (['LEARN_MORE', 'ORDER_NOW', 'BOOK_NOW', 'GET_DIRECTIONS'].includes(ctaType)) setCtaValue(defaultWebsite)
+        else setCtaValue('')
+    }, [ctaType, defaultPhone, defaultWebsite])
+
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -42,7 +55,9 @@ export default function BoostModal({ post, isOpen, onClose, onSuccess, adAccount
                     goal,
                     radiusKm: radius,
                     budget,
-                    durationDays
+                    durationDays,
+                    ctaType,
+                    ctaValue
                 })
             })
 
@@ -146,6 +161,52 @@ export default function BoostModal({ post, isOpen, onClose, onSuccess, adAccount
                                 </div>
                             </div>
 
+                            {/* CALL TO ACTION */}
+                            <div>
+                                <h3 className="font-semibold text-sm text-gray-900 mb-3 uppercase tracking-wider">Call to Action</h3>
+                                <div className="space-y-4">
+                                    <div>
+                                        <select 
+                                            value={ctaType}
+                                            onChange={(e) => setCtaType(e.target.value)}
+                                            className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent outline-none bg-white text-sm"
+                                        >
+                                            <option value="CALL_NOW">📞 Call Now (Recommended)</option>
+                                            <option value="LEARN_MORE">🌐 Learn More</option>
+                                            <option value="GET_DIRECTIONS">📍 Get Directions</option>
+                                            <option value="ORDER_NOW">🛒 Order Now</option>
+                                            <option value="SEND_MESSAGE">💬 Send Message</option>
+                                            <option value="BOOK_NOW">📅 Book Now</option>
+                                            <option value="NO_BUTTON">None</option>
+                                        </select>
+                                    </div>
+                                    {['LEARN_MORE', 'ORDER_NOW', 'BOOK_NOW', 'GET_DIRECTIONS'].includes(ctaType) && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-600 mb-1">Website URL</label>
+                                            <input 
+                                                type="url"
+                                                value={ctaValue}
+                                                onChange={(e) => setCtaValue(e.target.value)}
+                                                placeholder="https://your-website.com"
+                                                className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent outline-none text-sm transition-shadow"
+                                            />
+                                        </div>
+                                    )}
+                                    {ctaType === 'CALL_NOW' && (
+                                        <div>
+                                            <label className="block text-xs font-medium text-gray-600 mb-1">Phone Number</label>
+                                            <input 
+                                                type="tel"
+                                                value={ctaValue}
+                                                onChange={(e) => setCtaValue(e.target.value)}
+                                                placeholder="+971 50 123 4567"
+                                                className="w-full px-3 py-2 border rounded-md focus:ring-2 focus:ring-[#FF6B35] focus:border-transparent outline-none text-sm transition-shadow"
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
                             {/* BUDGET & DURATION */}
                             <div>
                                 <h3 className="font-semibold text-sm text-gray-900 mb-3 uppercase tracking-wider">Budget & Duration</h3>
@@ -208,10 +269,19 @@ export default function BoostModal({ post, isOpen, onClose, onSuccess, adAccount
                                         </div>
                                     )}
                                 </div>
-                                <div className="p-3 bg-gray-50 flex items-center justify-between">
-                                    <span className="text-sm font-medium">Learn More</span>
-                                    <button className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded text-xs font-semibold">Action</button>
-                                </div>
+                                {ctaType !== 'NO_BUTTON' && (
+                                    <div className="p-3 bg-gray-50 flex items-center justify-between">
+                                        <span className="text-sm font-medium">
+                                            {ctaType === 'CALL_NOW' ? 'Call Now' :
+                                             ctaType === 'LEARN_MORE' ? 'Learn More' :
+                                             ctaType === 'GET_DIRECTIONS' ? 'Get Directions' :
+                                             ctaType === 'ORDER_NOW' ? 'Order Now' :
+                                             ctaType === 'SEND_MESSAGE' ? 'Send Message' :
+                                             ctaType === 'BOOK_NOW' ? 'Book Now' : 'Action'}
+                                        </span>
+                                        <button disabled className="px-3 py-1.5 bg-gray-200 text-gray-800 rounded text-xs font-semibold">Action</button>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

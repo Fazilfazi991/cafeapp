@@ -29,7 +29,7 @@ export default function CalendarPage() {
             // Get posts directly. The RLS policy we just added automatically filters securely!
             const { data: postsData, error: postsError } = await supabase
                 .from('posts')
-                .select('*')
+                .select('*, restaurants(phone, brand_settings(website_url))')
                 .order('scheduled_at', { ascending: true })
 
             if (postsError) throw postsError

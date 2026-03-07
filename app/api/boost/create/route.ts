@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
     try {
         const body = await request.json()
-        const { postId, goal, radiusKm, budget, durationDays } = body
+        const { postId, goal, radiusKm, budget, durationDays, ctaType, ctaValue } = body
 
         if (!postId || !goal || !budget || !durationDays) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -146,6 +146,17 @@ export async function POST(request: Request) {
         // The prompt says "Object story ID: {pageId}_{postId}". 
         // We will just use `post.gmb_post_id` or similar if we added one, but let's just create an image creative for now to ensure it works.
         
+        // Build Call To Action Object if selected
+        let callToAction: any = null;
+        if (ctaType && ctaType !== 'NO_BUTTON') {
+             callToAction = {
+                 type: ctaType,
+                 value: {
+                     link: ctaType === 'CALL_NOW' ? `tel:${ctaValue}` : ctaValue
+                 }
+             }
+        }
+
         let creativeRes = await fetch(`https://graph.facebook.com/${fbApiVersion}/act_${adAccountId}/adcreatives`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -156,7 +167,8 @@ export async function POST(request: Request) {
                     instagram_actor_id: connectedAccount.meta_ig_id,
                     photo_data: {
                         image_url: post.poster_url,
-                        caption: post.selected_caption
+                        caption: post.selected_caption,
+                        ...(callToAction && { call_to_action: callToAction })
                     }
                 },
                 access_token: accessToken
