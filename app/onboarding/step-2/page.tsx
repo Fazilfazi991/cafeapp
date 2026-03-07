@@ -34,24 +34,19 @@ export default async function Step2() {
         const logo_url = formData.get('logo_url') as string // we'll skip actual file upload for this MVP step
 
         try {
-            // Calculate 30 day trial dates
-            const now = new Date()
-            const thirtyDaysFromNow = new Date()
-            thirtyDaysFromNow.setDate(now.getDate() + 30)
-
             // 2. Update restaurant tone, mark onboarding complete, and set trial plan
             const { error: updateError } = await supabase
                 .from('restaurants')
                 .update({
                     tone_of_voice,
-                    onboarding_complete: true,
-                    plan: 'active',
-                    plan_start_date: now.toISOString(),
-                    plan_end_date: thirtyDaysFromNow.toISOString()
+                    onboarding_complete: true
                 })
                 .eq('id', restaurant.id)
                 
-            if (updateError) console.error('[ONBOARDING_UPDATE_ERR]', updateError)
+            if (updateError) {
+                console.error('[ONBOARDING_UPDATE_ERR]', updateError)
+                redirect(`/onboarding/step-2?error=${encodeURIComponent(updateError.message || 'Error updating restaurant')}`)
+            }
 
             // 3. Upsert brand settings
             const { error: insertError } = await supabase
@@ -63,10 +58,19 @@ export default async function Step2() {
                     font_style: 'modern'
                 }, { onConflict: 'restaurant_id' })
 
-            if (insertError) console.error('[ONBOARDING_INSERT_ERR]', insertError)
+            if (insertError) {
+                console.error('[ONBOARDING_INSERT_ERR]', insertError)
+                redirect(`/onboarding/step-2?error=${encodeURIComponent(insertError.message || 'Error saving brand settings')}`)
+            }
 
-        } catch (err) {
+        } catch (err: any) {
             console.error('[ONBOARDING_FATAL_ERR]', err)
+            // Only redirect if it's not a Next.js redirect error payload
+            if (err?.message !== 'NEXT_REDIRECT') {
+                redirect(`/onboarding/step-2?error=Fatal Error`)
+            } else {
+                throw err;
+            }
         }
 
         redirect('/dashboard')
