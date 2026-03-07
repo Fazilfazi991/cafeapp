@@ -10,7 +10,7 @@
         },
         {
             "path": "/api/cron/whatsapp-template",
-            "schedule": "*/30 * * * *"
+            "schedule": "30 8 * * *"
         }
     ]
 }
