@@ -1,13 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-// Setup a Supabase client with the Service Role key to bypass RLS for background jobs
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
-
-const supabase = createClient(supabaseUrl, supabaseServiceKey)
+export const dynamic = 'force-dynamic'
 
 export async function GET(request: Request) {
+    // Create client inside handler so env vars are available at runtime, not build time
+    const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
     try {
         // Authenticate the cron request to ensure only Vercel (or authorized callers) can trigger it
         const authHeader = request.headers.get('authorization')
