@@ -20,6 +20,7 @@ export default async function Step2() {
             .from('restaurants')
             .select('id')
             .eq('user_id', user.id)
+            .order('created_at', { ascending: false })
             .limit(1)
 
         const restaurant = restaurants?.[0]

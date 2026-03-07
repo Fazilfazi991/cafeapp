@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
+import SubmitButton from '@/components/settings/SubmitButton'
 
 export default async function Step1() {
     const supabase = createClient()
@@ -22,17 +23,43 @@ export default async function Step1() {
         const website = formData.get('website') as string
         const phone = formData.get('phone') as string
 
-        const { error } = await supabase
+        // Check if restaurant already exists to prevent duplicates on double-clicks
+        const { data: existingRestaurant } = await supabase
             .from('restaurants')
-            .insert({
-                user_id: user.id,
-                name,
-                business_type: 'restaurant', // legacy fallback for db
-                cuisine_type,
-                city,
-                website: website || null,
-                phone: phone || null,
-            })
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle()
+
+        let error = null;
+
+        if (existingRestaurant) {
+            const { error: updateError } = await supabase
+                .from('restaurants')
+                .update({
+                    name,
+                    cuisine_type,
+                    city,
+                    branches,
+                    website: website || null,
+                    phone: phone || null,
+                })
+                .eq('id', existingRestaurant.id)
+            error = updateError;
+        } else {
+            const { error: insertError } = await supabase
+                .from('restaurants')
+                .insert({
+                    user_id: user.id,
+                    name,
+                    business_type: 'restaurant',
+                    cuisine_type,
+                    city,
+                    branches,
+                    website: website || null,
+                    phone: phone || null,
+                })
+            error = insertError;
+        }
 
         if (error) {
             console.error(error)
@@ -126,10 +153,11 @@ export default async function Step1() {
                     />
                 </div>
 
-                <button className="bg-[#1A1A1A] text-white rounded-md px-4 py-3 mt-4 font-medium hover:bg-gray-800 transition-colors w-full">
-                    Continue
-                </button>
-            </form>
+                <SubmitButton 
+                    text="Continue"
+                    loadingText="Saving..."
+                    className="bg-[#1A1A1A] text-white rounded-md px-4 py-3 mt-4 font-medium hover:bg-gray-800 transition-colors w-full flex items-center justify-center gap-2 disabled:opacity-70"
+                />
         </div>
     )
 }

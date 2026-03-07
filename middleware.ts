@@ -56,6 +56,7 @@ export async function middleware(request: NextRequest) {
         .from('restaurants')
         .select('onboarding_complete')
         .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
         .limit(1);
 
     const isComplete = restaurants?.[0]?.onboarding_complete ?? false;
