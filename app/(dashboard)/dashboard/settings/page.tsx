@@ -4,6 +4,7 @@ import ProfileForm from '@/components/settings/ProfileForm'
 import CreateRestaurantForm from '@/components/settings/CreateRestaurantForm'
 import MetaPageSelector from '@/components/settings/MetaPageSelector'
 import WhatsappConnectManager from '@/components/settings/WhatsappConnectManager'
+import AdAccountSelector from '@/components/settings/AdAccountSelector'
 
 export default async function SettingsPage() {
     const supabase = createClient()
@@ -151,21 +152,24 @@ export default async function SettingsPage() {
                         {(() => {
                             const metaAccount = restaurant.connected_accounts?.find((a: any) => a.platform === 'facebook');
 
-                            if (metaAccount && metaAccount.ad_account_id) {
+                            if (metaAccount && (metaAccount.ad_account_id || (metaAccount.ad_accounts_json && metaAccount.ad_accounts_json.length > 0))) {
                                 return (
-                                    <div className="border rounded-lg p-5 bg-gray-50 flex flex-col sm:flex-row justify-between sm:items-center gap-4">
-                                        <div>
+                                    <div className="border rounded-lg p-5 bg-gray-50 flex flex-col sm:flex-row justify-between sm:items-start gap-4">
+                                        <div className="flex-1 w-full">
                                             <div className="flex items-center gap-2 mb-2">
-                                                <span className="font-medium text-[#1A1A1A] text-sm">Ad Account Connected</span>
-                                                <span className="text-xs font-semibold px-2 py-0.5 bg-green-100 text-green-700 rounded-full flex items-center gap-1">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div> Active
+                                                <span className="font-medium text-[#1A1A1A] text-sm">Ad Account Connection</span>
+                                                <span className={`text-xs font-semibold px-2 py-0.5 rounded-full flex items-center gap-1 ${metaAccount.ad_account_id ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'}`}>
+                                                    <div className={`w-1.5 h-1.5 rounded-full ${metaAccount.ad_account_id ? 'bg-green-500' : 'bg-yellow-500'}`}></div> {metaAccount.ad_account_id ? 'Active' : 'Action Required'}
                                                 </span>
                                             </div>
-                                            <p className="text-sm font-medium text-gray-800">
-                                                {metaAccount.ad_account_name} <span className="text-gray-500 font-normal">({metaAccount.ad_account_currency})</span>
-                                            </p>
+                                            <AdAccountSelector 
+                                                initialAccountId={metaAccount.ad_account_id}
+                                                initialAccountName={metaAccount.ad_account_name}
+                                                initialAccountCurrency={metaAccount.ad_account_currency}
+                                                adAccountsJson={metaAccount.ad_accounts_json || []}
+                                            />
                                         </div>
-                                        <form action="/api/meta/disconnect-ad" method="POST">
+                                        <form action="/api/meta/disconnect-ad" method="POST" className="shrink-0 mt-2 sm:mt-0">
                                             <button className="text-red-600 hover:text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md text-sm font-medium transition-colors border border-transparent hover:border-red-100">
                                                 Disconnect Ad Account
                                             </button>

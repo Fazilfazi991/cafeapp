@@ -54,11 +54,16 @@ export async function GET(request: Request) {
                 ad_accounts_json: adAccounts
             }
             
-            // If they have ad accounts, safely auto-select the first one for convenience 
-            if (adAccounts.length > 0) {
+            // If they have exactly one ad account, auto-select it. Otherwise, force selection in UI.
+            if (adAccounts.length === 1) {
                 payload.ad_account_id = adAccounts[0].id;
                 payload.ad_account_name = adAccounts[0].name;
                 payload.ad_account_currency = adAccounts[0].currency;
+            } else {
+                // Clear any existing selected ad account so they are forced to choose
+                payload.ad_account_id = null;
+                payload.ad_account_name = null;
+                payload.ad_account_currency = null;
             }
 
         } else {
