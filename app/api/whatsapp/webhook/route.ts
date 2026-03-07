@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase-server'
 import { NextResponse } from 'next/server'
 
 // The verification token you set in the Meta App Developer Dashboard
-const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'postchef-whatsapp-webhook'
+const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'brand-pilot-whatsapp-webhook'
 
 /**
  * GET handler: Meta calls this endpoint to verify the webhook subscription

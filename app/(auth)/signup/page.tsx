@@ -32,7 +32,7 @@ export default function Signup({ searchParams }: { searchParams: { message: stri
                 className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground"
                 action={signUp}
             >
-                <h2 className="text-3xl font-bold mb-6 text-[#1A1A1A]">Create a PostChef Account</h2>
+                <h2 className="text-3xl font-bold mb-6 text-[#1A1A1A]">Create a Brand Pilot Account</h2>
 
                 <label className="text-md font-medium text-[#1A1A1A]" htmlFor="email">
                     Email

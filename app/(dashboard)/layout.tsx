@@ -70,7 +70,7 @@ export default async function DashboardLayout({
                     </div>
                     <h1 className="text-2xl font-bold mb-4">Your subscription has expired</h1>
                     <p className="text-gray-600 mb-8">
-                        Your free trial or billing period has ended. Please contact us to renew your access to PostChef and continue automating your social media.
+                        Your free trial or billing period has ended. Please contact us to renew your access to Brand Pilot and continue automating your social media.
                     </p>
                     <a href="mailto:support@example.com" className="inline-block bg-[#1A1A1A] text-white font-medium rounded-md px-6 py-3 hover:bg-gray-800 transition-colors">
                         Contact Support to Renew
@@ -102,7 +102,7 @@ export default async function DashboardLayout({
             <aside className="w-64 bg-[#1A1A1A] text-white hidden md:flex flex-col">
                 <div className="p-6 border-b border-gray-800 flex items-center gap-3">
                     <div className="w-8 h-8 rounded bg-[#FF6B35]"></div>
-                    <span className="font-bold text-xl tracking-tight">PostChef</span>
+                    <span className="font-bold text-xl tracking-tight">Brand Pilot</span>
                 </div>
                 <nav className="p-4 flex flex-col gap-2 flex-1">
                     {navLinks.map(({ href, icon: Icon, label }) => (
@@ -120,7 +120,7 @@ export default async function DashboardLayout({
                     {/* Mobile logo */}
                     <div className="flex items-center gap-2 md:hidden">
                         <div className="w-7 h-7 rounded bg-[#FF6B35]"></div>
-                        <span className="font-bold text-lg tracking-tight">PostChef</span>
+                        <span className="font-bold text-lg tracking-tight">Brand Pilot</span>
                     </div>
                     <div className="flex items-center gap-4 ml-auto">
                         <div className="text-sm font-medium text-gray-500 hidden sm:block">{user.email}</div>

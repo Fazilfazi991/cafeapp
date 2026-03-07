@@ -110,7 +110,7 @@ export async function getGMBLocations(accountId: string, accessToken: string) {
 export async function createGMBPost(locationName: string, imageUrl: string, caption: string, accessToken: string) {
     // Truncate caption if longer than 1500 chars (GMB limit)
     const summary = caption.substring(0, 1500);
-    const domain = process.env.NEXT_PUBLIC_APP_URL || 'https://postchef.com';
+    const domain = process.env.NEXT_PUBLIC_APP_URL || 'https://brandpilot.ae';
 
     const response = await fetch(`https://mybusiness.googleapis.com/v4/${locationName}/localPosts`, {
         method: 'POST',

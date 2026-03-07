@@ -10,7 +10,7 @@ export default function OnboardingLayout({
             <header className="px-8 py-6 border-b bg-white flex justify-between items-center">
                 <Link href="/" className="flex items-center gap-2">
                     <div className="w-8 h-8 rounded bg-[#FF6B35]"></div>
-                    <span className="font-bold text-xl tracking-tight text-[#1A1A1A]">PostChef</span>
+                    <span className="font-bold text-xl tracking-tight text-[#1A1A1A]">Brand Pilot</span>
                 </Link>
                 <div className="text-sm font-medium text-gray-500">
                     Account Setup

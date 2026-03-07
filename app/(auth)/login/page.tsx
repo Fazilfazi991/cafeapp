@@ -28,7 +28,7 @@ export default function Login({ searchParams }: { searchParams: { message: strin
                 className="animate-in flex-1 flex flex-col w-full justify-center gap-2 text-foreground"
                 action={signIn}
             >
-                <h2 className="text-3xl font-bold mb-6 text-[#1A1A1A]">Welcome back to PostChef</h2>
+                <h2 className="text-3xl font-bold mb-6 text-[#1A1A1A]">Welcome back to Brand Pilot</h2>
 
                 <label className="text-md font-medium text-[#1A1A1A]" htmlFor="email">
                     Email
