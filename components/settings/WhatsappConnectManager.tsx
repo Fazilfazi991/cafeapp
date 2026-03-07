@@ -214,7 +214,9 @@ export default function WhatsappConnectManager({ restaurantId, initialConnected 
 
     return (
         <div className="border rounded-lg p-5">
-            <p className="text-sm text-gray-600 mb-4">Connect WhatsApp Business to easily broadcast daily specials direct to customers' phones.</p>
+            <p className="text-sm text-gray-600 mb-4">
+                Connect your WhatsApp Business account to broadcast daily specials directly to your customers' phones.
+            </p>
 
             {error && (
                 <div className="mb-4 bg-red-50 text-red-600 text-sm p-3 rounded-md border border-red-100">
@@ -222,14 +224,32 @@ export default function WhatsappConnectManager({ restaurantId, initialConnected 
                 </div>
             )}
 
-            <button
-                onClick={launchEmbeddedSignup}
-                disabled={isLoading || !fbSdkLoaded}
-                className="bg-[#25D366] text-white border-transparent border rounded-md px-4 py-2 text-sm font-medium hover:bg-[#128C7E] transition-colors w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-50"
-            >
-                {isLoading ? <Loader2 size={16} className="animate-spin" /> : null}
-                {fbSdkLoaded ? 'Connect WhatsApp Business' : 'Loading SDK...'}
-            </button>
+            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center">
+                <button
+                    onClick={launchEmbeddedSignup}
+                    disabled={isLoading}
+                    className="bg-[#25D366] text-white border-transparent border rounded-md px-4 py-2 text-sm font-medium hover:bg-[#128C7E] transition-colors w-full sm:w-auto flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                    {isLoading ? (
+                        <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Connecting...
+                        </>
+                    ) : (
+                        '📱 Connect WhatsApp Business'
+                    )}
+                </button>
+
+                {!fbSdkLoaded && !isLoading && (
+                    <span className="text-xs text-gray-400 flex items-center gap-1">
+                        <Loader2 size={12} className="animate-spin" /> Loading Meta SDK...
+                    </span>
+                )}
+            </div>
+
+            <p className="text-xs text-gray-400 mt-3">
+                A Meta login flow will open. Sign in with the Facebook account that manages your WhatsApp Business number.
+            </p>
         </div>
     )
 }

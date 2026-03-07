@@ -145,7 +145,8 @@ export default async function SettingsPage() {
                         })()}
                     </div>
 
-                    <div className="mb-8 pt-6 mt-6 border-t border-gray-100">
+                    <div className="pt-6 mt-6 border-t border-gray-100">
+                        <h3 className="font-semibold text-[#1A1A1A] mb-3 flex items-center gap-2">📱 WhatsApp Business</h3>
                         <WhatsappConnectManager
                             restaurantId={restaurant.id}
                             initialConnected={!!restaurant.connected_accounts?.find((a: any) => a.platform === 'facebook' && a.whatsapp_business_account_id)}
