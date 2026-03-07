@@ -62,9 +62,15 @@ export default async function Step1() {
         }
 
         if (error) {
-            console.error(error)
-            redirect('/onboarding/step-1?error=Could not save details')
+            console.error('[ONBOARDING_STEP1_ERROR]', {
+                error,
+                existingRestaurant,
+                user: user.id
+            })
+            redirect(`/onboarding/step-1?error=${encodeURIComponent(error.message || 'Could not save details')}`)
         }
+
+        console.log('[ONBOARDING_STEP1_SUCCESS]', { user: user.id, action: existingRestaurant ? 'UPDATE' : 'INSERT' })
 
         redirect('/onboarding/step-2')
     }
