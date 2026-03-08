@@ -80,6 +80,6 @@ export async function GET(req: Request) {
     } catch (error: any) {
         console.error('[GMB_CALLBACK_ERROR]', error)
         const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
-        return NextResponse.redirect(`${appUrl}/dashboard/settings?gmb=error`)
+        return NextResponse.redirect(`${appUrl}/dashboard/settings?gmb=error&reason=${encodeURIComponent(error?.message || 'unknown_error')}`)
     }
 }
