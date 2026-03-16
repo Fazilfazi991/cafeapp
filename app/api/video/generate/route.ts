@@ -71,61 +71,56 @@ export async function POST(req: Request) {
 
         if (dbError) throw dbError;
 
-        // 2. Initialize Gemini Veo
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-        // @ts-ignore - Veo 3.0 might not be in the typings yet
-        const model = genAI.getGenerativeModel({ model: "veo-3.0-generate-preview" });
-
+        // 2. Initialize parameters
         console.log(`[VIDEO_API] Starting generation for ${videoRecord.id}`);
 
-        // 3. Call Veo API via direct REST (SDK helper missing in v0.24.1)
-        const videoConfig = {
-            aspectRatio: aspectRatio,
-            durationSeconds: duration,
-            generateAudio: generateAudio
-        };
-
-        let operation;
-        const apiUri = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-preview:generateVideo?key=${process.env.GEMINI_API_KEY}`;
+        // 3. Call Veo 3.1 API via direct REST
+        const apiUri = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning`;
         
-        const payload: any = {
-            prompt: prompt,
-            config: videoConfig
+        const payload = {
+            instances: [{
+                prompt: prompt
+            }],
+            parameters: {
+                aspectRatio: aspectRatio,
+                durationSeconds: duration
+            }
         };
 
+        // Note: Reference image support in predictLongRunning might differ
+        // For now, we follow the exact structure provided for prompt-based generation
         if (referenceImage) {
             const matches = referenceImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
-                payload.image = {
+                // @ts-ignore
+                payload.instances[0].image = {
                     mimeType: matches[1],
                     data: matches[2]
                 };
             }
         }
 
-        console.log(`[VIDEO_API] Calling REST endpoint for ${videoRecord.id}`);
-        // Model name can be changed here if needed for testing:
-        // "veo-3.0-generate-preview", "veo-2.0-generate-001", "imagen-veo-3"
+        console.log(`[VIDEO_API] Calling Veo 3.1 predictLongRunning for ${videoRecord.id}`);
         const response = await fetch(apiUri, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'x-goog-api-key': process.env.GEMINI_API_KEY || ''
+            },
             body: JSON.stringify(payload)
         });
 
         console.log(`[VIDEO_API] Veo API Status: ${response.status}`);
         
+        const text = await response.text();
+        console.log(`[VIDEO_API] Raw response: ${text.substring(0, 500)}`);
+
         let data;
         try {
-            const text = await response.text();
-            console.log(`[VIDEO_API] Raw response: ${text.substring(0, 500)}`);
-            if (text) {
-                data = JSON.parse(text);
-            } else {
-                throw new Error('Empty response from Veo API');
-            }
+            data = text ? JSON.parse(text) : {};
         } catch (parseErr: any) {
-            console.error('[VIDEO_API] JSON parse error or empty response:', parseErr.message);
-            throw new Error(`Invalid response from Veo API (Status ${response.status}). Check server logs for raw output.`);
+            console.error('[VIDEO_API] JSON parse error:', parseErr.message);
+            throw new Error(`Invalid JSON from Veo API (Status ${response.status})`);
         }
         
         if (!response.ok) {
@@ -133,7 +128,8 @@ export async function POST(req: Request) {
             throw new Error(data.error?.message || `API error: ${response.status}`);
         }
 
-        operation = data;
+        const operation = data;
+        console.log(`[VIDEO_API] Operation created: ${operation.name}`);
 
         // Update record with operation info if available, or just mark as processing
         await supabase

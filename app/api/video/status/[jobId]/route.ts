@@ -30,24 +30,32 @@ export async function GET(
         }
 
         // 2. Check Gemini Operation status via REST
-        const operationId = video.operation_id || video.id;
-        const apiUri = `https://generativelanguage.googleapis.com/v1beta/operations/${operationId}?key=${process.env.GEMINI_API_KEY}`;
+        const operationName = video.operation_id || `operations/${video.id}`;
+        // Ensure operation name starts with 'operations/'
+        const normalizedOpName = operationName.startsWith('operations/') ? operationName : `operations/${operationName}`;
         
-        console.log(`[VIDEO_STATUS] Polling REST for ${operationId}`);
-        const response = await fetch(apiUri);
+        const apiUri = `https://generativelanguage.googleapis.com/v1beta/${normalizedOpName}`;
+        
+        console.log(`[VIDEO_STATUS] Polling Veo 3.1 for ${normalizedOpName}`);
+        const response = await fetch(apiUri, {
+            headers: {
+                'x-goog-api-key': process.env.GEMINI_API_KEY || ''
+            }
+        });
         const data = await response.json();
 
         if (!response.ok) {
             console.error('[VIDEO_STATUS_REST_ERROR]', data);
             return NextResponse.json({ 
                 status: video.status,
-                progress: video.status === 'processing' ? 50 : 10
+                progress: 10
             });
         }
 
-        // 3. Handle status updates
+        // 3. Handle completion
         if (data.done) {
             if (data.error) {
+                console.error('[VIDEO_STATUS_API_ERROR]', data.error);
                 await supabase
                     .from('videos')
                     .update({ status: 'failed', error_message: data.error.message })
@@ -56,23 +64,52 @@ export async function GET(
                 return NextResponse.json({ status: 'failed', error: data.error.message });
             }
 
-            // Success! Extract video URL from response
-            // The response structure for Veo is typically in data.response.video.uri or similar
-            const videoUrl = data.response?.video?.uri || data.response?.uri;
+            // Success! Extract video data
+            // Structure: response.videos[0].video.uri OR response.videos[0].video.bytesBase64Encoded
+            const videoData = data.response?.videos?.[0]?.video;
+            let finalVideoUrl = videoData?.uri;
+
+            if (videoData?.bytesBase64Encoded) {
+                console.log(`[VIDEO_STATUS] Received base64 video for ${jobId}, uploading to Supabase...`);
+                const buffer = Buffer.from(videoData.bytesBase64Encoded, 'base64');
+                const fileName = `${jobId}.mp4`;
+                
+                const { data: uploadData, error: uploadError } = await supabase
+                    .storage
+                    .from('videos')
+                    .upload(fileName, buffer, {
+                        contentType: 'video/mp4',
+                        upsert: true
+                    });
+
+                if (uploadError) {
+                    console.error('[VIDEO_UPLOAD_ERROR]', uploadError);
+                    throw new Error(`Failed to upload video to storage: ${uploadError.message}`);
+                }
+
+                const { data: { publicUrl } } = supabase.storage.from('videos').getPublicUrl(fileName);
+                finalVideoUrl = publicUrl;
+            }
             
-            if (videoUrl) {
+            if (finalVideoUrl) {
                 await supabase
                     .from('videos')
-                    .update({ status: 'completed', video_url: videoUrl })
+                    .update({ 
+                        status: 'completed', 
+                        video_url: finalVideoUrl,
+                        thumbnail_url: finalVideoUrl.replace('.mp4', '.jpg') // Placeholder thumbnail strategy
+                    })
                     .eq('id', jobId);
                 
-                return NextResponse.json({ status: 'completed', videoUrl });
+                return NextResponse.json({ status: 'completed', videoUrl: finalVideoUrl });
+            } else {
+                throw new Error('No video URL or data found in API response');
             }
         }
 
         return NextResponse.json({ 
-            status: video.status,
-            progress: video.status === 'processing' ? 50 : 10
+            status: 'processing',
+            progress: 50 // Placeholder progress
         });
 
     } catch (error: any) {
