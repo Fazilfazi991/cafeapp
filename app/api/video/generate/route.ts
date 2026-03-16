@@ -104,13 +104,29 @@ export async function POST(req: Request) {
         }
 
         console.log(`[VIDEO_API] Calling REST endpoint for ${videoRecord.id}`);
+        // Model name can be changed here if needed for testing:
+        // "veo-3.0-generate-preview", "veo-2.0-generate-001", "imagen-veo-3"
         const response = await fetch(apiUri, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
         });
 
-        const data = await response.json();
+        console.log(`[VIDEO_API] Veo API Status: ${response.status}`);
+        
+        let data;
+        try {
+            const text = await response.text();
+            console.log(`[VIDEO_API] Raw response: ${text.substring(0, 500)}`);
+            if (text) {
+                data = JSON.parse(text);
+            } else {
+                throw new Error('Empty response from Veo API');
+            }
+        } catch (parseErr: any) {
+            console.error('[VIDEO_API] JSON parse error or empty response:', parseErr.message);
+            throw new Error(`Invalid response from Veo API (Status ${response.status}). Check server logs for raw output.`);
+        }
         
         if (!response.ok) {
             console.error('[VIDEO_REST_ERROR]', data);
