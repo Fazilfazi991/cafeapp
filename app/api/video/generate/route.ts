@@ -52,21 +52,39 @@ export async function POST(req: Request) {
 
         console.log(`[VIDEO_API] Starting generation for ${videoRecord.id}`);
 
-        // Prepare prompt with base64 reference if exists
-        let finalPrompt = prompt;
-        // In the future, we might use the actual generative components for multi-modal
-        // For now, if referenceImage is provided, it's handled as part of the specialized VEO call if supported
-        
         // 3. Call Veo API
-        // @ts-ignore
-        const operation = await model.generateVideo({
-            prompt: finalPrompt,
-            config: {
-                aspectRatio: aspectRatio,
-                durationSeconds: duration,
-                generateAudio: generateAudio
+        const videoConfig = {
+            aspectRatio: aspectRatio,
+            durationSeconds: duration,
+            generateAudio: generateAudio
+        };
+
+        let operation;
+        if (referenceImage) {
+            // Extract base64 and mime type
+            const matches = referenceImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (!matches || matches.length !== 3) {
+                throw new Error('Invalid reference image format');
             }
-        });
+            const mimeType = matches[1];
+            const data = matches[2];
+
+            // @ts-ignore
+            operation = await model.generateVideo({
+                prompt: finalPrompt,
+                image: {
+                    mimeType: mimeType,
+                    data: data
+                },
+                config: videoConfig
+            });
+        } else {
+            // @ts-ignore
+            operation = await model.generateVideo({
+                prompt: finalPrompt,
+                config: videoConfig
+            });
+        }
 
         // Update record with operation info if available, or just mark as processing
         await supabase

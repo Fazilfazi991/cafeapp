@@ -9,7 +9,9 @@ import {
     RefreshCcw, 
     Clock, 
     AlertCircle,
-    Layout
+    Layout,
+    Image as ImageIcon,
+    X
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
 import SchedulingModal from '@/components/create/SchedulingModal';
@@ -50,6 +52,8 @@ export default function VideoStudio() {
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [restaurant, setRestaurant] = useState<any>(null);
+    const [referenceImage, setReferenceImage] = useState<string | null>(null);
+    const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
     
     // Scheduling Modal State
     const [isSchedulingModalOpen, setIsSchedulingModalOpen] = useState(false);
@@ -86,6 +90,28 @@ export default function VideoStudio() {
         setIsSchedulingModalOpen(true);
     };
 
+    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File is too large. Max size is 10MB.');
+            return;
+        }
+
+        setReferenceFileName(file.name);
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            setReferenceImage(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+    };
+
+    const removeImage = () => {
+        setReferenceImage(null);
+        setReferenceFileName(null);
+    };
+
     const handleGenerate = async () => {
         if (!prompt || !restaurant) return;
         setIsGenerating(true);
@@ -102,7 +128,8 @@ export default function VideoStudio() {
                     aspectRatio,
                     duration,
                     generateAudio,
-                    restaurantId: restaurant.id
+                    restaurantId: restaurant.id,
+                    referenceImage
                 })
             });
 
@@ -191,6 +218,48 @@ export default function VideoStudio() {
                                 placeholder="Describe your video... e.g. A slow cinematic close-up of a steaming plate of biryani..."
                                 className="w-full p-4 border rounded-lg focus:ring-2 focus:ring-[#FF6B35] border-gray-200 outline-none transition-all resize-none text-sm"
                             />
+                        </div>
+
+                        {/* Reference Image Section */}
+                        <div className="space-y-1.5">
+                            <label className="text-sm font-semibold text-gray-700">Reference Image (Optional)</label>
+                            <p className="text-[11px] text-gray-500">Upload a food photo to guide the video style and content</p>
+                            
+                            {!referenceImage ? (
+                                <div className="relative group">
+                                    <input 
+                                        type="file" 
+                                        onChange={handleImageUpload}
+                                        accept="image/*"
+                                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                                    />
+                                    <div className="border-2 border-dashed border-gray-200 rounded-xl p-6 flex flex-col items-center justify-center gap-2 group-hover:border-[#FF6B35] group-hover:bg-orange-50 transition-all">
+                                        <div className="w-10 h-10 bg-gray-50 rounded-full flex items-center justify-center text-gray-400 group-hover:text-[#FF6B35] transition-colors">
+                                            <ImageIcon size={20} />
+                                        </div>
+                                        <div className="text-center">
+                                            <p className="text-sm font-medium text-gray-700">Click to upload or drag & drop</p>
+                                            <p className="text-xs text-gray-400 uppercase font-bold tracking-wider mt-1">JPG, PNG up to 10MB</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="flex items-center gap-4 p-3 border rounded-xl bg-gray-50 border-gray-200">
+                                    <div className="relative w-16 h-16 rounded-lg overflow-hidden border bg-white flex-shrink-0">
+                                        <img src={referenceImage} alt="Preview" className="w-full h-full object-cover" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-bold text-gray-700 truncate">{referenceFileName}</p>
+                                        <p className="text-[10px] text-gray-400 uppercase font-bold">Ready to use</p>
+                                    </div>
+                                    <button 
+                                        onClick={removeImage}
+                                        className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-lg transition-all"
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
