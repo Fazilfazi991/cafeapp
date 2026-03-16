@@ -1,7 +1,9 @@
+import axios from 'axios';
+import FormData from 'form-data';
 import { createClient } from '@/lib/supabase-server';
 
 const MANUS_API_KEY = process.env.MANUS_API_KEY as string;
-const MANUS_BASE_URL = 'https://api.manus.ai/v1';
+const MANUS_BASE_URL = 'https://api.manus.im/v1'; // Switched to .im as suggested
 
 console.log('[MANUS_INIT] API Key exists:', !!MANUS_API_KEY);
 if (!MANUS_API_KEY) {
@@ -9,33 +11,35 @@ if (!MANUS_API_KEY) {
 }
 
 export async function uploadFileToManus(imageUrl: string): Promise<string> {
-    const res = await fetch(imageUrl);
-    if (!res.ok) throw new Error(`Failed to fetch source image: ${res.statusText}`);
-    const blob = await res.blob();
-
-    const formData = new FormData();
-    formData.append('file', blob, 'food.jpg');
-
     console.log(`[MANUS_FILE_UPLOAD] Initiating upload to ${MANUS_BASE_URL}/files`);
     
-    const manusRes = await fetch(`${MANUS_BASE_URL}/files`, {
-        method: 'POST',
-        headers: {
-            'X-API-Key': MANUS_API_KEY,
-        },
-        body: formData,
-    });
+    try {
+        // Fetch the image as a buffer
+        const imageRes = await axios.get(imageUrl, { responseType: 'arraybuffer' });
+        const buffer = Buffer.from(imageRes.data, 'binary');
 
-    console.log(`[MANUS_FILE_UPLOAD] Response status: ${manusRes.status} ${manusRes.statusText}`);
-    const resText = await manusRes.text();
-    console.log(`[MANUS_FILE_UPLOAD] Response body: ${resText}`);
+        const form = new FormData();
+        form.append('file', buffer, {
+            filename: 'food.jpg',
+            contentType: 'image/jpeg'
+        });
 
-    if (!manusRes.ok) {
-        throw new Error(`Manus file upload failed (${manusRes.status}): ${resText}`);
+        const manusRes = await axios.post(`${MANUS_BASE_URL}/files`, form, {
+            headers: {
+                ...form.getHeaders(),
+                'X-API-Key': MANUS_API_KEY,
+            }
+        });
+
+        console.log(`[MANUS_FILE_UPLOAD] Response status: ${manusRes.status}`);
+        console.log(`[MANUS_FILE_UPLOAD] Response body:`, JSON.stringify(manusRes.data, null, 2));
+
+        return manusRes.data.id;
+    } catch (err: any) {
+        const errorData = err.response?.data || err.message;
+        console.error(`[MANUS_FILE_UPLOAD_ERROR]`, errorData);
+        throw new Error(`Manus file upload failed: ${JSON.stringify(errorData)}`);
     }
-
-    const data = JSON.parse(resText);
-    return data.id;
 }
 
 export async function createManusTask(params: {
@@ -52,27 +56,26 @@ export async function createManusTask(params: {
         body.fileIds = [params.fileId];
     }
 
+    console.log(`[MANUS_TASK_CREATE] URL: ${MANUS_BASE_URL}/tasks`);
     console.log(`[MANUS_TASK_CREATE] Request body:`, JSON.stringify(body, null, 2));
 
-    const res = await fetch(`${MANUS_BASE_URL}/tasks`, {
-        method: 'POST',
-        headers: {
-            'X-API-Key': MANUS_API_KEY,
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-    });
+    try {
+        const res = await axios.post(`${MANUS_BASE_URL}/tasks`, body, {
+            headers: {
+                'X-API-Key': MANUS_API_KEY,
+                'Content-Type': 'application/json',
+            }
+        });
 
-    console.log(`[MANUS_TASK_CREATE] Response status: ${res.status} ${res.statusText}`);
-    const resText = await res.text();
-    console.log(`[MANUS_TASK_CREATE] Response body: ${resText}`);
+        console.log(`[MANUS_TASK_CREATE] Response status: ${res.status}`);
+        console.log(`[MANUS_TASK_CREATE] Response body:`, JSON.stringify(res.data, null, 2));
 
-    if (!res.ok) {
-        throw new Error(`Manus task creation failed (${res.status}): ${resText}`);
+        return res.data.id;
+    } catch (err: any) {
+        const errorData = err.response?.data || err.message;
+        console.error(`[MANUS_TASK_CREATE_ERROR]`, errorData);
+        throw new Error(`Manus task creation failed: ${JSON.stringify(errorData)}`);
     }
-
-    const data = JSON.parse(resText);
-    return data.id;
 }
 
 export async function getManusTaskStatus(taskId: string): Promise<{
@@ -80,32 +83,35 @@ export async function getManusTaskStatus(taskId: string): Promise<{
     resultUrl?: string;
     error?: string;
 }> {
-    const res = await fetch(`${MANUS_BASE_URL}/tasks/${taskId}`, {
-        headers: {
-            'X-API-Key': MANUS_API_KEY,
-        },
-    });
-
-    if (!res.ok) {
-        const err = await res.text();
-        throw new Error(`Manus status check failed: ${err}`);
-    }
-
-    const data = await res.json();
-    console.log(`[MANUS_STATUS_CHECK] Task ${taskId} status: ${data.status}`);
-    console.log(`[MANUS_STATUS_CHECK] Full response body:`, JSON.stringify(data, null, 2));
+    console.log(`[MANUS_STATUS_CHECK] URL: ${MANUS_BASE_URL}/tasks/${taskId}`);
     
-    // Based on Manus API, results might be in an array of files/outputs
-    let resultUrl = undefined;
-    if (data.status === 'completed' && data.output && data.output.files) {
-        const imageFile = data.output.files.find((f: any) => f.type === 'image' || f.url?.match(/\.(jpg|jpeg|png)$/i));
-        resultUrl = imageFile?.url;
-        console.log(`[MANUS_STATUS_CHECK] Found result URL: ${resultUrl}`);
-    }
+    try {
+        const res = await axios.get(`${MANUS_BASE_URL}/tasks/${taskId}`, {
+            headers: {
+                'X-API-Key': MANUS_API_KEY,
+            }
+        });
 
-    return {
-        status: data.status,
-        resultUrl,
-        error: data.error_message,
-    };
+        const data = res.data;
+        console.log(`[MANUS_STATUS_CHECK] Task ${taskId} status: ${data.status}`);
+        // console.log(`[MANUS_STATUS_CHECK] Full response body:`, JSON.stringify(data, null, 2));
+        
+        // Based on Manus API, results might be in an array of files/outputs
+        let resultUrl = undefined;
+        if (data.status === 'completed' && data.output && data.output.files) {
+            const imageFile = data.output.files.find((f: any) => f.type === 'image' || f.url?.match(/\.(jpg|jpeg|png)$/i));
+            resultUrl = imageFile?.url;
+            console.log(`[MANUS_STATUS_CHECK] Found result URL: ${resultUrl}`);
+        }
+
+        return {
+            status: data.status,
+            resultUrl,
+            error: data.error_message,
+        };
+    } catch (err: any) {
+        const errorData = err.response?.data || err.message;
+        console.error(`[MANUS_STATUS_CHECK_ERROR]`, errorData);
+        throw new Error(`Manus status check failed: ${JSON.stringify(errorData)}`);
+    }
 }
