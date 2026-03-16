@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server';
 
 const MANUS_API_KEY = process.env.MANUS_API_KEY as string;
-const MANUS_BASE_URL = 'https://api.manus.im/v1';
+const MANUS_BASE_URL = 'https://api.manus.ai/v1';
 
 console.log('[MANUS_INIT] API Key exists:', !!MANUS_API_KEY);
 
@@ -32,8 +32,9 @@ export async function createManusTask({
   const response = await fetch(`${MANUS_BASE_URL}/tasks`, {
     method: 'POST',
     headers: {
-      'Content-Type': 'application/json',
-      'X-API-Key': MANUS_API_KEY
+      'accept': 'application/json',
+      'content-type': 'application/json',
+      'API_KEY': MANUS_API_KEY
     },
     body: JSON.stringify({
       prompt: fullPrompt,
@@ -62,7 +63,8 @@ export async function getManusTaskStatus(taskId: string): Promise<{
     
     const res = await fetch(`${MANUS_BASE_URL}/tasks/${taskId}`, {
         headers: {
-            'X-API-Key': MANUS_API_KEY,
+            'accept': 'application/json',
+            'API_KEY': MANUS_API_KEY,
         },
     });
 
