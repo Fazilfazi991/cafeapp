@@ -100,18 +100,44 @@ export async function POST(req: NextRequest) {
             .eq('id', videoRecord.id);
 
         // 3. Poll until complete (Wait for up to 10 minutes)
+        const operationName = operation.name;
+        console.log('[VEO] Operation name:', operationName);
+
+        let done = false;
         let attempts = 0;
         const maxAttempts = 60;
         const delay = 10000; // 10 seconds
+        let finalResponse = null;
 
-        while (!operation.done && attempts < maxAttempts) {
+        while (!done && attempts < maxAttempts) {
             console.log(`[VEO] Polling attempt ${attempts + 1}/${maxAttempts} for ${videoRecord.id}...`);
             await new Promise(r => setTimeout(r, delay));
-            operation = await operation.refresh();
             attempts++;
+
+            try {
+                const pollResponse = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/${operationName}`,
+                    {
+                        headers: {
+                            'x-goog-api-key': process.env.GEMINI_API_KEY!
+                        }
+                    }
+                );
+                
+                const pollData = await pollResponse.json();
+                console.log('[VEO] Poll response status:', pollResponse.status);
+                
+                if (pollData.done) {
+                    done = true;
+                    finalResponse = pollData;
+                }
+            } catch (pollErr: any) {
+                console.error('[VEO] Polling error:', pollErr.message);
+                // Continue polling unless it's a critical failure
+            }
         }
 
-        if (!operation.done) {
+        if (!done || !finalResponse) {
             const timeoutError = 'Video generation timed out after 10 minutes';
             console.error(`[VEO] ${timeoutError}`);
             await supabase
@@ -124,7 +150,15 @@ export async function POST(req: NextRequest) {
         console.log('[VEO] Done! Response data available.');
 
         // 4. Extract video details
-        const video = operation.response?.generatedVideos?.[0];
+        // Structure: finalResponse.response.generateVideoResponse.generatedSamples[0].video
+        const video = finalResponse
+            ?.response
+            ?.generateVideoResponse
+            ?.generatedSamples?.[0]
+            ?.video;
+
+        console.log('[VEO] Video object summary:', video ? 'Found' : 'Not Found');
+
         if (!video) {
             const noVideoError = 'No video found in response';
             await supabase
@@ -134,8 +168,8 @@ export async function POST(req: NextRequest) {
             throw new Error(noVideoError);
         }
 
-        const videoBytes = video.video?.bytesBase64Encoded;
-        const videoUri = video.video?.uri;
+        const videoBytes = video.bytesBase64Encoded;
+        const videoUri = video.uri;
 
         console.log('[VEO] Has bytes:', !!videoBytes);
         console.log('[VEO] Has URI:', !!videoUri);
