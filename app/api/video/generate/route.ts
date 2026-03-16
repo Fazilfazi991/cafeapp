@@ -71,62 +71,26 @@ export async function POST(req: Request) {
 
         if (dbError) throw dbError;
 
-        // 2. Initialize parameters
-        console.log(`[VIDEO_API] Starting generation for ${videoRecord.id}`);
-
-        // 3. Call Veo 3.0 API via direct REST (SIMPLIFIED PAYLOAD AS REQUESTED)
-        const apiUri = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-preview:predictLongRunning`;
-        
-        const payload = {
-            instances: [{
-                prompt: prompt
-            }]
-            // DO NOT include parameters (aspectRatio, durationSeconds) as they can cause "data isn't supported"
-        };
-
-        if (referenceImage) {
-            const matches = referenceImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-                // @ts-ignore
-                payload.instances[0].image = {
-                    mimeType: matches[1],
-                    data: matches[2]
-                };
-            }
-        }
-
-        console.log(`[VIDEO_API] Calling Veo 3.0 predictLongRunning for ${videoRecord.id}`);
-        console.log(`[VIDEO_API] Payload: ${JSON.stringify(payload)}`);
-
-        const response = await fetch(apiUri, {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json',
-                'x-goog-api-key': process.env.GEMINI_API_KEY || ''
-            },
-            body: JSON.stringify(payload)
+        // 2. Initialize Google GenAI SDK (Veo 3.1)
+        console.log(`[VIDEO_API] Initializing GoogleGenAI SDK for ${videoRecord.id}`);
+        // @ts-ignore
+        const { GoogleGenAI } = await import('@google/genai');
+        const ai = new GoogleGenAI({ 
+            apiKey: process.env.GEMINI_API_KEY || '' 
         });
 
-        console.log(`[VIDEO_API] Veo API Status: ${response.status}`);
-        
-        const text = await response.text();
-        console.log(`[VIDEO_API] Full Veo API response text: ${text}`);
+        // 3. Call generateVideos
+        console.log(`[VIDEO_API] Calling generateVideos for ${videoRecord.id}`);
+        const operation = await ai.models.generateVideos({
+            model: 'veo-3.1-generate-preview',
+            prompt: prompt,
+            config: {
+                aspectRatio: aspectRatio,
+                numberOfVideos: 1,
+            }
+        });
 
-        let data;
-        try {
-            data = text ? JSON.parse(text) : {};
-        } catch (parseErr: any) {
-            console.error('[VIDEO_API] JSON parse error:', parseErr.message);
-            throw new Error(`Invalid JSON from Veo API (Status ${response.status}): ${text.substring(0, 100)}`);
-        }
-        
-        if (!response.ok) {
-            console.error('[VIDEO_REST_ERROR]', data);
-            throw new Error(data.error?.message || `API error: ${response.status}`);
-        }
-
-        const operation = data;
-        console.log(`[VIDEO_API] Operation Name received: ${operation.name}`);
+        console.log(`[VIDEO_API] Operation created: ${operation.name}`);
 
         // Update record with operation info if available, or just mark as processing
         await supabase
