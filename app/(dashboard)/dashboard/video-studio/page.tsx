@@ -421,9 +421,12 @@ export default function VideoStudio() {
                                     <video 
                                         src={videoUrl} 
                                         autoPlay 
+                                        onLoadedData={() => console.log('[VEO] Video loaded successfully:', videoUrl)}
+                                        onError={(e) => console.error('[VEO] Video load error:', e)}
                                         muted 
                                         loop 
                                         className="w-full h-full object-cover"
+                                        onMouseEnter={() => console.log('[VEO] Setting video src:', videoUrl)}
                                     />
                                 </div>
                                 

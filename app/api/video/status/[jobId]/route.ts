@@ -74,12 +74,29 @@ export async function GET(
         }
 
         // Success! Extract video data using the new SDK structure
-        const generatedVideo = operation.response?.generatedVideos?.[0];
+        const generatedVideo = operation.response?.generatedVideos?.[0] || operation.response?.generateVideoResponse?.generatedSamples?.[0];
         const videoBytes = generatedVideo?.video?.bytesBase64Encoded;
+        const videoUri = generatedVideo?.video?.uri;
         
-        if (videoBytes) {
-            console.log(`[VIDEO_STATUS] Received base64 video for ${jobId}, uploading...`);
-            const buffer = Buffer.from(videoBytes, 'base64');
+        if (videoBytes || videoUri) {
+            let buffer: Buffer;
+            
+            if (videoBytes) {
+                console.log(`[VIDEO_STATUS] Received base64 video for ${jobId}, uploading...`);
+                buffer = Buffer.from(videoBytes, 'base64');
+            } else {
+                console.log(`[VIDEO_STATUS] No bytes found. Fetching from URI: ${videoUri}`);
+                const videoResponse = await fetch(videoUri!, {
+                    headers: { 
+                        'x-goog-api-key': process.env.GEMINI_API_KEY! 
+                    }
+                });
+                if (!videoResponse.ok) {
+                    throw new Error(`Failed to fetch video bytes from URI: ${videoResponse.statusText}`);
+                }
+                buffer = Buffer.from(await videoResponse.arrayBuffer());
+            }
+
             const fileName = `${jobId}.mp4`;
             
             const { error: uploadError } = await supabase
@@ -108,7 +125,7 @@ export async function GET(
             
             return NextResponse.json({ status: 'completed', videoUrl: publicUrl });
         } else {
-            console.error('[VIDEO_STATUS_MISSING_DATA] No bytes found in response');
+            console.error('[VIDEO_STATUS_MISSING_DATA] No video data (bytes or URI) found in response');
             throw new Error('No video data found in SDK response');
         }
 

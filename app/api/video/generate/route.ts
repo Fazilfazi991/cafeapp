@@ -176,9 +176,26 @@ export async function POST(req: NextRequest) {
 
         let finalVideoUrl = videoUri;
 
-        if (videoBytes) {
-            console.log('[VEO] Uploading bytes to Supabase Storage...');
-            const buffer = Buffer.from(videoBytes, 'base64');
+        if (videoBytes || videoUri) {
+            let buffer: Buffer;
+            
+            if (videoBytes) {
+                console.log('[VEO] Using provided bytes from response.');
+                buffer = Buffer.from(videoBytes, 'base64');
+            } else {
+                console.log('[VEO] No bytes provided. Fetching from URI:', videoUri);
+                const videoResponse = await fetch(videoUri!, {
+                    headers: { 
+                        'x-goog-api-key': process.env.GEMINI_API_KEY! 
+                    }
+                });
+                if (!videoResponse.ok) {
+                    throw new Error(`Failed to fetch video bytes from URI: ${videoResponse.statusText}`);
+                }
+                buffer = Buffer.from(await videoResponse.arrayBuffer());
+            }
+
+            console.log('[VEO] Uploading video to Supabase Storage...');
             const fileName = `studio-${videoRecord.id}.mp4`;
             
             const { error: uploadError } = await supabase.storage
@@ -198,7 +215,7 @@ export async function POST(req: NextRequest) {
         }
 
         if (finalVideoUrl) {
-            console.log('[VEO] Final Video URL:', finalVideoUrl);
+            console.log('[VEO] Final video URL:', finalVideoUrl);
             await supabase
                 .from('videos')
                 .update({ 
