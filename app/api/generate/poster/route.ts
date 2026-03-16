@@ -75,17 +75,23 @@ export async function POST(req: Request) {
         const headline = offerText?.trim() || customText?.trim() || analysis.dishName;
 
         try {
-            const { uploadFileToManus, createManusTask } = await import('@/lib/manus');
+            const { createManusTask } = await import('@/lib/manus');
             
             // Validate API Key presence
             if (!process.env.MANUS_API_KEY) {
                 throw new Error('MANUS_API_KEY is not configured in environment variables.');
             }
 
-            let fileId = undefined;
+            let imageBuffer: Buffer | undefined = undefined;
             if (imageUrl && !imageUrl.startsWith('data:')) {
-                console.log('Uploading reference image to Manus...');
-                fileId = await uploadFileToManus(imageUrl);
+                console.log('Fetching image buffer for Manus base64 embedding...');
+                const imgRes = await fetch(imageUrl);
+                if (imgRes.ok) {
+                    imageBuffer = Buffer.from(await imgRes.arrayBuffer());
+                    console.log(`Fetched image buffer. Size: ${imageBuffer.length} bytes`);
+                } else {
+                    console.warn(`Failed to fetch image from URL: ${imgRes.statusText}`);
+                }
             }
 
             const styles = ['minimal', 'bold', 'lifestyle'] as const;
@@ -100,7 +106,7 @@ export async function POST(req: Request) {
             const taskPromises = styles.map(style => 
                 createManusTask({ 
                     prompt: stylePrompts[style], 
-                    fileId: style === 'bold' ? undefined : fileId 
+                    imageBuffer: style === 'bold' ? undefined : imageBuffer 
                 }).then(id => ({ style, taskId: id }))
             );
 
