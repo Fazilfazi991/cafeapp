@@ -29,16 +29,47 @@ export async function GET(
             });
         }
 
-        // 2. Check Gemini Operation status
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
-        // Note: Polling logic for VEO 3.0 specific operations
-        // This is a placeholder for the actual refresh/poll logic
-        // In a real implementation, we'd use the operation ID to check status
+        // 2. Check Gemini Operation status via REST
+        const operationId = video.operation_id || video.id;
+        const apiUri = `https://generativelanguage.googleapis.com/v1beta/operations/${operationId}?key=${process.env.GEMINI_API_KEY}`;
         
-        // For now, we simulate the polling by checking if enough time has passed
-        // and updating status dynamically. 
-        // Real-world: operation = await genAI.getOperation(operationId);
-        
+        console.log(`[VIDEO_STATUS] Polling REST for ${operationId}`);
+        const response = await fetch(apiUri);
+        const data = await response.json();
+
+        if (!response.ok) {
+            console.error('[VIDEO_STATUS_REST_ERROR]', data);
+            return NextResponse.json({ 
+                status: video.status,
+                progress: video.status === 'processing' ? 50 : 10
+            });
+        }
+
+        // 3. Handle status updates
+        if (data.done) {
+            if (data.error) {
+                await supabase
+                    .from('videos')
+                    .update({ status: 'failed', error_message: data.error.message })
+                    .eq('id', jobId);
+                
+                return NextResponse.json({ status: 'failed', error: data.error.message });
+            }
+
+            // Success! Extract video URL from response
+            // The response structure for Veo is typically in data.response.video.uri or similar
+            const videoUrl = data.response?.video?.uri || data.response?.uri;
+            
+            if (videoUrl) {
+                await supabase
+                    .from('videos')
+                    .update({ status: 'completed', video_url: videoUrl })
+                    .eq('id', jobId);
+                
+                return NextResponse.json({ status: 'completed', videoUrl });
+            }
+        }
+
         return NextResponse.json({ 
             status: video.status,
             progress: video.status === 'processing' ? 50 : 10

@@ -66,7 +66,7 @@ export async function POST(req: Request) {
 
         console.log(`[VIDEO_API] Starting generation for ${videoRecord.id}`);
 
-        // 3. Call Veo API
+        // 3. Call Veo API via direct REST (SDK helper missing in v0.24.1)
         const videoConfig = {
             aspectRatio: aspectRatio,
             durationSeconds: duration,
@@ -74,42 +74,52 @@ export async function POST(req: Request) {
         };
 
         let operation;
-        if (referenceImage) {
-            // Extract base64 and mime type
-            const matches = referenceImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (!matches || matches.length !== 3) {
-                throw new Error('Invalid reference image format');
-            }
-            const mimeType = matches[1];
-            const data = matches[2];
+        const apiUri = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-preview:generateVideo?key=${process.env.GEMINI_API_KEY}`;
+        
+        const payload: any = {
+            prompt: prompt,
+            config: videoConfig
+        };
 
-            // @ts-ignore
-            operation = await model.generateVideo({
-                prompt: prompt,
-                image: {
-                    mimeType: mimeType,
-                    data: data
-                },
-                config: videoConfig
-            });
-        } else {
-            // @ts-ignore
-            operation = await model.generateVideo({
-                prompt: prompt,
-                config: videoConfig
-            });
+        if (referenceImage) {
+            const matches = referenceImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+                payload.image = {
+                    mimeType: matches[1],
+                    data: matches[2]
+                };
+            }
         }
+
+        console.log(`[VIDEO_API] Calling REST endpoint for ${videoRecord.id}`);
+        const response = await fetch(apiUri, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+            console.error('[VIDEO_REST_ERROR]', data);
+            throw new Error(data.error?.message || `API error: ${response.status}`);
+        }
+
+        operation = data;
 
         // Update record with operation info if available, or just mark as processing
         await supabase
             .from('videos')
-            .update({ status: 'processing' })
+            .update({ 
+                status: 'processing',
+                operation_id: operation?.name
+            })
             .eq('id', videoRecord.id);
 
         return NextResponse.json({ 
             success: true, 
             jobId: videoRecord.id,
-            operationId: operation?.name || videoRecord.id // Use internal ID if operation name is missing
+            operationId: operation?.name || videoRecord.id
         });
 
     } catch (error: any) {

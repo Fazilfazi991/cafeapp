@@ -49,6 +49,7 @@ export default function VideoStudio() {
     const [generateAudio, setGenerateAudio] = useState(true);
     const [isGenerating, setIsGenerating] = useState(false);
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
@@ -102,6 +103,7 @@ export default function VideoStudio() {
         if (!prompt) return;
         setIsGenerating(true);
         setStatus('loading');
+        setErrorMessage(null);
 
         try {
             const response = await fetch('/api/video/generate', {
@@ -122,10 +124,13 @@ export default function VideoStudio() {
             if (data.success) {
                 pollStatus(data.jobId);
             } else {
-                throw new Error(data.error);
+                setErrorMessage(data.error || 'Failed to initiate video generation');
+                setStatus('error');
+                setIsGenerating(false);
             }
-        } catch (err) {
+        } catch (err: any) {
             console.error(err);
+            setErrorMessage(err.message || 'An unexpected error occurred');
             setStatus('error');
             setIsGenerating(false);
         }
@@ -143,12 +148,14 @@ export default function VideoStudio() {
                     clearInterval(interval);
                     fetchHistory();
                 } else if (data.status === 'failed') {
+                    setErrorMessage(data.error || 'Video generation failed on the server');
                     setStatus('error');
                     setIsGenerating(false);
                     clearInterval(interval);
                 }
-            } catch (err) {
+            } catch (err: any) {
                 console.error(err);
+                setErrorMessage(err.message || 'Status check failed');
                 clearInterval(interval);
             }
         }, 5000);
@@ -371,7 +378,7 @@ export default function VideoStudio() {
                             <div className="space-y-4 max-w-sm text-red-600">
                                 <AlertCircle size={48} className="mx-auto" />
                                 <h3 className="text-xl font-bold">Generation Failed</h3>
-                                <p className="text-red-500 text-sm opacity-80">Video generation limit reached or server unavailable. Please try again later.</p>
+                                <p className="text-red-500 text-sm opacity-80">{errorMessage || 'Video generation limit reached or server unavailable. Please try again later.'}</p>
                                 <button onClick={() => setStatus('idle')} className="mt-4 px-6 py-2 bg-red-50 text-red-600 rounded-lg font-bold hover:bg-red-100 transition-all">Try Again</button>
                             </div>
                         )}
