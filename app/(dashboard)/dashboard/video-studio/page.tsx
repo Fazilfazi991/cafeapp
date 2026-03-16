@@ -77,21 +77,66 @@ export default function VideoStudio() {
         setIsSchedulingModalOpen(true);
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > 10 * 1024 * 1024) {
-            alert('File is too large. Max size is 10MB.');
+        // Still show a basic size limit for UX
+        if (file.size > 14 * 1024 * 1024) {
+            alert('File is too large. Max size is 14MB.');
             return;
         }
 
         setReferenceFileName(file.name);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            setReferenceImage(reader.result as string);
-        };
-        reader.readAsDataURL(file);
+        
+        try {
+            const compressedBase64 = await compressImage(file);
+            setReferenceImage(compressedBase64);
+        } catch (err) {
+            console.error('[VIDEO_STUDIO] Compression failed:', err);
+            // Fallback to basic FileReader if canvas fails
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                setReferenceImage(reader.result as string);
+            };
+            reader.readAsDataURL(file);
+        }
+    };
+
+    const compressImage = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    let width = img.width;
+                    let height = img.height;
+                    const maxDim = 1024;
+
+                    if (width > height && width > maxDim) {
+                        height = (height * maxDim) / width;
+                        width = maxDim;
+                    } else if (height > maxDim) {
+                        width = (width * maxDim) / height;
+                        height = maxDim;
+                    }
+
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx?.drawImage(img, 0, 0, width, height);
+                    
+                    // Compress to JPEG with 0.8 quality
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                    resolve(dataUrl);
+                };
+                img.onerror = reject;
+                img.src = e.target?.result as string;
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
     };
 
     const removeImage = () => {
