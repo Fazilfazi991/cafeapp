@@ -18,35 +18,36 @@ CREATE TABLE videos (
 -- Enable RLS
 ALTER TABLE videos ENABLE ROW LEVEL SECURITY;
 
--- Add RLS policies
-CREATE POLICY "Users can view their own restaurant's videos"
-  ON videos FOR SELECT
-  USING (
-    restaurant_id IN (
-      SELECT id FROM restaurants WHERE user_id = auth.uid()
-    )
-  );
+-- Drop existing policies
+DROP POLICY IF EXISTS "Users can view their own restaurant's videos" ON videos;
+DROP POLICY IF EXISTS "Users can insert their own restaurant's videos" ON videos;
+DROP POLICY IF EXISTS "Users can update their own restaurant's videos" ON videos;
+DROP POLICY IF EXISTS "Users can delete their own restaurant's videos" ON videos;
+DROP POLICY IF EXISTS "Users can insert own videos" ON videos;
+DROP POLICY IF EXISTS "Users can view own videos" ON videos;
 
-CREATE POLICY "Users can insert their own restaurant's videos"
-  ON videos FOR INSERT
-  WITH CHECK (
-    restaurant_id IN (
-      SELECT id FROM restaurants WHERE user_id = auth.uid()
-    )
-  );
+-- Create correct policies
+CREATE POLICY "Users can insert own videos" ON videos
+FOR INSERT WITH CHECK (
+  restaurant_id IN (
+    SELECT id FROM restaurants 
+    WHERE user_id = auth.uid()
+  )
+);
 
-CREATE POLICY "Users can update their own restaurant's videos"
-  ON videos FOR UPDATE
-  USING (
-    restaurant_id IN (
-      SELECT id FROM restaurants WHERE user_id = auth.uid()
-    )
-  );
+CREATE POLICY "Users can view own videos" ON videos
+FOR SELECT USING (
+  restaurant_id IN (
+    SELECT id FROM restaurants 
+    WHERE user_id = auth.uid()
+  )
+);
 
-CREATE POLICY "Users can delete their own restaurant's videos"
-  ON videos FOR DELETE
-  USING (
-    restaurant_id IN (
-      SELECT id FROM restaurants WHERE user_id = auth.uid()
-    )
-  );
+-- Policy for updates (required for status updates during generation)
+CREATE POLICY "Users can update own videos" ON videos
+FOR UPDATE USING (
+  restaurant_id IN (
+    SELECT id FROM restaurants 
+    WHERE user_id = auth.uid()
+  )
+);

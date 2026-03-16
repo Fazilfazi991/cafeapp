@@ -55,28 +55,35 @@ export async function POST(req: NextRequest) {
         }
 
         if (!restaurantId) {
-            console.error('[VEO] No restaurant found for user:', user.id);
-            return NextResponse.json({ 
-                error: 'Please select or create a restaurant before generating videos.' 
-            }, { status: 400 });
+            console.warn('[VEO] No restaurant found for user:', user.id, '. Proceeding without database record.');
         }
 
-        // 1. Create DB record for tracking
-        console.log(`[VEO] Attempting insert. User: ${user.id}, Restaurant: ${restaurantId}`);
-        const { data: videoRecord, error: dbError } = await supabase
-            .from('videos')
-            .insert({
-                restaurant_id: restaurantId,
-                title: title || 'New Studio Reel',
-                prompt,
-                aspect_ratio: aspectRatio,
-                duration,
-                status: 'pending'
-            })
-            .select()
-            .single();
+        // 1. Create DB record for tracking (Optional)
+        let videoRecord = null;
+        if (restaurantId) {
+            console.log(`[VEO] Attempting insert. User: ${user.id}, Restaurant: ${restaurantId}`);
+            const { data, error: dbError } = await supabase
+                .from('videos')
+                .insert({
+                    restaurant_id: restaurantId,
+                    title: title || 'New Studio Reel',
+                    prompt,
+                    aspect_ratio: aspectRatio,
+                    duration,
+                    status: 'pending'
+                })
+                .select()
+                .single();
+            
+            if (dbError) {
+                console.error('[VEO] DB Insert Error:', dbError.message);
+                // We don't throw here to allow generation to continue if possible
+            } else {
+                videoRecord = data;
+            }
+        }
 
-        if (dbError) throw dbError;
+        const jobId = videoRecord?.id || crypto.randomUUID();
 
         // 2. Initialize Google GenAI SDK
         console.log('[VEO] Initializing GoogleGenAI SDK...');
@@ -99,13 +106,15 @@ export async function POST(req: NextRequest) {
         console.log('[VEO] Operation created:', JSON.stringify(operation));
 
         // Update DB with operation name immediately
-        await supabase
-            .from('videos')
-            .update({ 
-                status: 'processing',
-                operation_id: operation.name
-            })
-            .eq('id', videoRecord.id);
+        if (videoRecord) {
+            await supabase
+                .from('videos')
+                .update({ 
+                    status: 'processing',
+                    operation_id: operation.name
+                })
+                .eq('id', videoRecord.id);
+        }
 
         // 3. Poll until complete (Wait for up to 10 minutes)
         const operationName = operation.name;
@@ -118,7 +127,7 @@ export async function POST(req: NextRequest) {
         let finalResponse = null;
 
         while (!done && attempts < maxAttempts) {
-            console.log(`[VEO] Polling attempt ${attempts + 1}/${maxAttempts} for ${videoRecord.id}...`);
+            console.log(`[VEO] Polling attempt ${attempts + 1}/${maxAttempts} for ${jobId}...`);
             await new Promise(r => setTimeout(r, delay));
             attempts++;
 
@@ -148,10 +157,12 @@ export async function POST(req: NextRequest) {
         if (!done || !finalResponse) {
             const timeoutError = 'Video generation timed out after 10 minutes';
             console.error(`[VEO] ${timeoutError}`);
-            await supabase
-                .from('videos')
-                .update({ status: 'failed', error_message: timeoutError })
-                .eq('id', videoRecord.id);
+            if (videoRecord) {
+                await supabase
+                    .from('videos')
+                    .update({ status: 'failed', error_message: timeoutError })
+                    .eq('id', videoRecord.id);
+            }
             throw new Error(timeoutError);
         }
 
@@ -169,10 +180,12 @@ export async function POST(req: NextRequest) {
 
         if (!video) {
             const noVideoError = 'No video found in response';
-            await supabase
-                .from('videos')
-                .update({ status: 'failed', error_message: noVideoError })
-                .eq('id', videoRecord.id);
+            if (videoRecord) {
+                await supabase
+                    .from('videos')
+                    .update({ status: 'failed', error_message: noVideoError })
+                    .eq('id', videoRecord.id);
+            }
             throw new Error(noVideoError);
         }
 
@@ -204,7 +217,7 @@ export async function POST(req: NextRequest) {
             }
 
             console.log('[VEO] Uploading video to Supabase Storage...');
-            const fileName = `studio-${videoRecord.id}.mp4`;
+            const fileName = `studio-${jobId}.mp4`;
             
             const { error: uploadError } = await supabase.storage
                 .from('videos')
@@ -224,19 +237,22 @@ export async function POST(req: NextRequest) {
 
         if (finalVideoUrl) {
             console.log('[VEO] Final video URL:', finalVideoUrl);
-            await supabase
-                .from('videos')
-                .update({ 
-                    status: 'completed', 
-                    video_url: finalVideoUrl,
-                    thumbnail_url: finalVideoUrl.replace('.mp4', '.jpg')
-                })
-                .eq('id', videoRecord.id);
+            
+            if (videoRecord) {
+                await supabase
+                    .from('videos')
+                    .update({ 
+                        status: 'completed', 
+                        video_url: finalVideoUrl,
+                        thumbnail_url: finalVideoUrl.replace('.mp4', '.jpg')
+                    })
+                    .eq('id', videoRecord.id);
+            }
 
             return NextResponse.json({ 
                 success: true, 
                 videoUrl: finalVideoUrl,
-                jobId: videoRecord.id 
+                jobId: jobId 
             });
         }
 
