@@ -52,6 +52,8 @@ export async function POST(req: NextRequest) {
             if (restaurant) {
                 restaurantId = restaurant.id;
             }
+        }
+
         if (!restaurantId) {
             console.error('[VEO] No restaurant found for user:', user.id);
             return NextResponse.json({ 
