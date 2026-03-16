@@ -90,7 +90,14 @@ export async function POST(req: Request) {
             }
         });
 
-        console.log(`[VIDEO_API] Operation created: ${operation.name}`);
+        // DEBUGGING OPERATION OBJECT
+        console.log('[VIDEO_API] Result type:', typeof operation);
+        console.log('[VIDEO_API] Full operation object:', JSON.stringify(operation, null, 2));
+        console.log('[VIDEO_API] Operation keys:', Object.keys(operation));
+        console.log('[VIDEO_API] Operation name:', operation.name);
+        console.log('[VIDEO_API] Operation ID (prop):', (operation as any).operationId);
+        console.log('[VIDEO_API] Operation metadata name:', (operation as any).metadata?.name);
+        console.log('[VIDEO_API] Operation done:', operation.done);
 
         // Update record with operation info if available, or just mark as processing
         await supabase

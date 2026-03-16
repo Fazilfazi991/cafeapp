@@ -31,6 +31,8 @@ export async function GET(
 
         // 2. Check operation status via new SDK
         const operationName = video.operation_id;
+        console.log(`[VIDEO_STATUS] Received jobId: ${jobId}, fetched operation_id: ${operationName}`);
+        
         if (!operationName) {
             return NextResponse.json({ 
                 status: 'failed', 
