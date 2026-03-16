@@ -71,12 +71,17 @@ export async function POST(req: Request) {
         });
 
         // STEP 4 — Generate posters with Manus API (Async)
-        console.log('Initiating Manus task creation...');
+        console.log('Using Manus API for poster generation');
         const headline = offerText?.trim() || customText?.trim() || analysis.dishName;
 
         try {
             const { uploadFileToManus, createManusTask } = await import('@/lib/manus');
             
+            // Validate API Key presence
+            if (!process.env.MANUS_API_KEY) {
+                throw new Error('MANUS_API_KEY is not configured in environment variables.');
+            }
+
             let fileId = undefined;
             if (imageUrl && !imageUrl.startsWith('data:')) {
                 console.log('Uploading reference image to Manus...');
@@ -112,34 +117,12 @@ export async function POST(req: Request) {
                 captions
             });
 
-        } catch (manusError) {
-            console.error('[MANUS_INIT_FAILED] falling back to Gemini...', manusError);
-            
-            // Fallback to existing Gemini logic
-            const { generateAllPosters } = await import('@/lib/gemini');
-            const posters = await generateAllPosters({
-                photoUrl: imageUrl,
-                logoUrl: brand?.logo_url || undefined,
-                businessName: restaurant.name || 'Our Restaurant',
-                businessType: restaurant.cuisine_type || 'Restaurant',
-                customText: headline,
-                dishName: analysis.dishName,
-                dishDescription: analysis.description,
-                phone: restaurant.phone || '',
-                website: restaurant.website || '',
-                address: restaurant.address || 'Dubai, UAE',
-                primaryColor: brand?.primary_color || '#FF6B35',
-                tone: restaurant.tone_of_voice || 'casual',
-                restaurantId: restaurant.id,
-            });
-
-            return NextResponse.json({
-                success: true,
-                isAsync: false,
-                dishName: analysis.dishName,
-                posters,
-                captions
-            });
+        } catch (manusError: any) {
+            console.error('[MANUS_INIT_FAILED]', manusError);
+            return NextResponse.json({ 
+                error: 'Poster generation failed. Please try again.',
+                details: manusError.message 
+            }, { status: 500 });
         }
 
     } catch (error: any) {
