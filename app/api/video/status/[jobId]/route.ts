@@ -54,6 +54,9 @@ export async function GET(
 
         // 3. Handle completion
         if (data.done) {
+            console.log(`[VIDEO_STATUS] Operation ${normalizedOpName} is DONE`);
+            console.log(`[VIDEO_STATUS] Full Response: ${JSON.stringify(data)}`);
+
             if (data.error) {
                 console.error('[VIDEO_STATUS_API_ERROR]', data.error);
                 await supabase
@@ -64,9 +67,13 @@ export async function GET(
                 return NextResponse.json({ status: 'failed', error: data.error.message });
             }
 
-            // Success! Extract video data
-            // Structure: response.videos[0].video.uri OR response.videos[0].video.bytesBase64Encoded
-            const videoData = data.response?.videos?.[0]?.video;
+            // Success! Extract video data from the new nested structure:
+            // response.generateVideoResponse.generatedSamples[0].video.uri 
+            // OR response.generateVideoResponse.generatedSamples[0].video.bytesBase64Encoded
+            const genVideoResponse = data.response?.generateVideoResponse;
+            const sample = genVideoResponse?.generatedSamples?.[0];
+            const videoData = sample?.video;
+            
             let finalVideoUrl = videoData?.uri;
 
             if (videoData?.bytesBase64Encoded) {
@@ -92,18 +99,20 @@ export async function GET(
             }
             
             if (finalVideoUrl) {
+                console.log(`[VIDEO_STATUS] Final Video URL: ${finalVideoUrl}`);
                 await supabase
                     .from('videos')
                     .update({ 
                         status: 'completed', 
                         video_url: finalVideoUrl,
-                        thumbnail_url: finalVideoUrl.replace('.mp4', '.jpg') // Placeholder thumbnail strategy
+                        thumbnail_url: finalVideoUrl.replace('.mp4', '.jpg')
                     })
                     .eq('id', jobId);
                 
                 return NextResponse.json({ status: 'completed', videoUrl: finalVideoUrl });
             } else {
-                throw new Error('No video URL or data found in API response');
+                console.error('[VIDEO_STATUS_MISSING_DATA] Full data object:', JSON.stringify(data));
+                throw new Error('No video URL or data found in nested API response (generateVideoResponse.generatedSamples)');
             }
         }
 

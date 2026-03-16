@@ -74,21 +74,16 @@ export async function POST(req: Request) {
         // 2. Initialize parameters
         console.log(`[VIDEO_API] Starting generation for ${videoRecord.id}`);
 
-        // 3. Call Veo 3.1 API via direct REST
-        const apiUri = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.1-generate-preview:predictLongRunning`;
+        // 3. Call Veo 3.0 API via direct REST (SIMPLIFIED PAYLOAD AS REQUESTED)
+        const apiUri = `https://generativelanguage.googleapis.com/v1beta/models/veo-3.0-generate-preview:predictLongRunning`;
         
         const payload = {
             instances: [{
                 prompt: prompt
-            }],
-            parameters: {
-                aspectRatio: aspectRatio,
-                durationSeconds: duration
-            }
+            }]
+            // DO NOT include parameters (aspectRatio, durationSeconds) as they can cause "data isn't supported"
         };
 
-        // Note: Reference image support in predictLongRunning might differ
-        // For now, we follow the exact structure provided for prompt-based generation
         if (referenceImage) {
             const matches = referenceImage.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
             if (matches && matches.length === 3) {
@@ -100,7 +95,9 @@ export async function POST(req: Request) {
             }
         }
 
-        console.log(`[VIDEO_API] Calling Veo 3.1 predictLongRunning for ${videoRecord.id}`);
+        console.log(`[VIDEO_API] Calling Veo 3.0 predictLongRunning for ${videoRecord.id}`);
+        console.log(`[VIDEO_API] Payload: ${JSON.stringify(payload)}`);
+
         const response = await fetch(apiUri, {
             method: 'POST',
             headers: { 
@@ -113,14 +110,14 @@ export async function POST(req: Request) {
         console.log(`[VIDEO_API] Veo API Status: ${response.status}`);
         
         const text = await response.text();
-        console.log(`[VIDEO_API] Raw response: ${text.substring(0, 500)}`);
+        console.log(`[VIDEO_API] Full Veo API response text: ${text}`);
 
         let data;
         try {
             data = text ? JSON.parse(text) : {};
         } catch (parseErr: any) {
             console.error('[VIDEO_API] JSON parse error:', parseErr.message);
-            throw new Error(`Invalid JSON from Veo API (Status ${response.status})`);
+            throw new Error(`Invalid JSON from Veo API (Status ${response.status}): ${text.substring(0, 100)}`);
         }
         
         if (!response.ok) {
@@ -129,7 +126,7 @@ export async function POST(req: Request) {
         }
 
         const operation = data;
-        console.log(`[VIDEO_API] Operation created: ${operation.name}`);
+        console.log(`[VIDEO_API] Operation Name received: ${operation.name}`);
 
         // Update record with operation info if available, or just mark as processing
         await supabase
