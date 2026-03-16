@@ -15,6 +15,10 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { imageUrl, customText, dishName: providedDishName, offerText } = body;
 
+        console.log('=== STARTING POSTER GENERATION ===');
+        console.log('MANUS_API_KEY exists:', !!process.env.MANUS_API_KEY);
+        console.log('MANUS_API_KEY value:', process.env.MANUS_API_KEY?.substring(0, 10));
+
         if (!imageUrl) {
             return NextResponse.json({ error: 'Missing image URL' }, { status: 400 });
         }
@@ -124,15 +128,18 @@ export async function POST(req: Request) {
             });
 
         } catch (manusError: any) {
-            console.error('[MANUS_INIT_FAILED]', manusError);
+            console.error('=== MANUS_INIT_FAILED ===');
+            console.error(manusError);
             return NextResponse.json({ 
                 error: 'Poster generation failed. Please try again.',
-                details: manusError.message 
+                details: manusError.message,
+                stack: manusError.stack
             }, { status: 500 });
         }
 
     } catch (error: any) {
-        console.error('[POSTER_GENERATION_ERROR]', error);
+        console.error('=== POSTER_GENERATION_ERROR ===');
+        console.error(error);
         return NextResponse.json({ error: error.message || 'Failed to generate posters' }, { status: 500 });
     }
 }

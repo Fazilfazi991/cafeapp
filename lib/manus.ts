@@ -26,9 +26,8 @@ export async function createManusTask({
     fullPrompt = `Reference image: ${dataUrl}\n\n${prompt}`;
   }
 
-  console.log(`[MANUS_TASK_CREATE] URL: ${MANUS_BASE_URL}/tasks`);
-  // Not logging full body because it contains base64 image which would flood logs
-  console.log(`[MANUS_TASK_CREATE] Prompt length: ${fullPrompt.length}`);
+  console.log('=== CALLING MANUS API ===');
+  console.log('Prompt length:', fullPrompt.length);
 
   const response = await fetch(`${MANUS_BASE_URL}/tasks`, {
     method: 'POST',
@@ -44,7 +43,8 @@ export async function createManusTask({
   });
 
   const data = await response.json();
-  console.log('[MANUS_TASK_CREATE] Response:', JSON.stringify(data, null, 2));
+  console.log('Response status:', response.status);
+  console.log('Response body:', JSON.stringify(data));
   
   if (!response.ok) {
     throw new Error(`Manus task creation failed: ${JSON.stringify(data)}`);
