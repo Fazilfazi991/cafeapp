@@ -11,7 +11,19 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const body = await req.json();
+        // Log request size to debug potential 413s
+        const contentLength = req.headers.get('content-length');
+        console.log(`[VIDEO_API] Received request. Size: ${contentLength} bytes`);
+
+        let body;
+        try {
+            body = await req.json();
+        } catch (jsonErr) {
+            console.error('[VIDEO_API] JSON parse error:', jsonErr);
+            return NextResponse.json({ 
+                error: 'Invalid JSON request. The image might be too large or the payload corrupted.' 
+            }, { status: 400 });
+        }
         let { 
             title, 
             prompt, 

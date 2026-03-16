@@ -104,7 +104,6 @@ export default function VideoStudio() {
         setIsGenerating(true);
         setStatus('loading');
         setErrorMessage(null);
-
         try {
             const response = await fetch('/api/video/generate', {
                 method: 'POST',
@@ -120,7 +119,20 @@ export default function VideoStudio() {
                 })
             });
 
-            const data = await response.json();
+            const contentType = response.headers.get('content-type');
+            let data;
+            
+            if (contentType && contentType.includes('application/json')) {
+                data = await response.json();
+            } else {
+                const rawText = await response.text();
+                console.error('[VIDEO_STUDIO] Non-JSON response:', rawText);
+                setErrorMessage(`Server Error: ${rawText.substring(0, 50)}...`);
+                setStatus('error');
+                setIsGenerating(false);
+                return;
+            }
+
             if (data.success) {
                 pollStatus(data.jobId);
             } else {
@@ -129,7 +141,7 @@ export default function VideoStudio() {
                 setIsGenerating(false);
             }
         } catch (err: any) {
-            console.error(err);
+            console.error('[VIDEO_STUDIO] Fetch error:', err);
             setErrorMessage(err.message || 'An unexpected error occurred');
             setStatus('error');
             setIsGenerating(false);
@@ -140,7 +152,17 @@ export default function VideoStudio() {
         const interval = setInterval(async () => {
             try {
                 const res = await fetch(`/api/video/status/${jobId}`);
-                const data = await res.json();
+                const contentType = res.headers.get('content-type');
+                
+                let data;
+                if (contentType && contentType.includes('application/json')) {
+                    data = await res.json();
+                } else {
+                    const rawText = await res.text();
+                    console.error('[VIDEO_STUDIO] Poll Non-JSON:', rawText);
+                    return; // Continue polling or handle error
+                }
+
                 if (data.status === 'completed') {
                     setVideoUrl(data.videoUrl);
                     setStatus('success');
@@ -154,7 +176,7 @@ export default function VideoStudio() {
                     clearInterval(interval);
                 }
             } catch (err: any) {
-                console.error(err);
+                console.error('[VIDEO_STUDIO] Status Check Error:', err);
                 setErrorMessage(err.message || 'Status check failed');
                 clearInterval(interval);
             }
