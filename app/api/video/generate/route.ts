@@ -12,7 +12,7 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const { 
+        let { 
             title, 
             prompt, 
             negativePrompt, 
@@ -20,11 +20,25 @@ export async function POST(req: Request) {
             duration = 8, 
             generateAudio = true,
             restaurantId,
-            referenceImage // Base64 optional
+            referenceImage
         } = body;
 
-        if (!prompt || !restaurantId) {
-            return NextResponse.json({ error: 'Missing prompt or restaurantId' }, { status: 400 });
+        if (!prompt) {
+            return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
+        }
+
+        // 0. Auto-resolve restaurantId if missing
+        if (!restaurantId) {
+            const { data: restaurant } = await supabase
+                .from('restaurants')
+                .select('id')
+                .eq('user_id', user.id)
+                .limit(1)
+                .single();
+            
+            if (restaurant) {
+                restaurantId = restaurant.id;
+            }
         }
 
         // 1. Create DB record

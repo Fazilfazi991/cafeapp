@@ -51,8 +51,6 @@ export default function VideoStudio() {
     const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
     const [videoUrl, setVideoUrl] = useState<string | null>(null);
     const [history, setHistory] = useState<any[]>([]);
-    const [restaurant, setRestaurant] = useState<any>(null);
-    const [isLoadingRestaurant, setIsLoadingRestaurant] = useState(true);
     const [referenceImage, setReferenceImage] = useState<string | null>(null);
     const [referenceFileName, setReferenceFileName] = useState<string | null>(null);
     
@@ -61,44 +59,8 @@ export default function VideoStudio() {
     const [selectedVideoToSchedule, setSelectedVideoToSchedule] = useState<{url: string, title: string} | null>(null);
 
     useEffect(() => {
-        fetchRestaurant();
         fetchHistory();
-
-        // Safety timeout to prevent stuck loading state
-        const timer = setTimeout(() => {
-            console.log('[VIDEO_STUDIO] safety timeout reached (3s)');
-            setIsLoadingRestaurant(false);
-        }, 3000);
-
-        return () => clearTimeout(timer);
     }, []);
-
-    const fetchRestaurant = async () => {
-        try {
-            console.log('[VIDEO_STUDIO] fetching restaurant...');
-            const { data: { user } } = await supabase.auth.getUser();
-            console.log('[VIDEO_STUDIO] auth user:', user?.id);
-            
-            if (user) {
-                const { data, error } = await supabase
-                    .from('restaurants')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .single();
-                
-                if (error) {
-                    console.error('[VIDEO_STUDIO] error fetching restaurant:', error);
-                } else {
-                    console.log('[VIDEO_STUDIO] restaurant loaded:', data?.id);
-                    setRestaurant(data);
-                }
-            }
-        } catch (err) {
-            console.error('[VIDEO_STUDIO] unexpected error in fetchRestaurant:', err);
-        } finally {
-            setIsLoadingRestaurant(false);
-        }
-    };
 
     const fetchHistory = async () => {
         const { data } = await supabase
@@ -138,10 +100,6 @@ export default function VideoStudio() {
 
     const handleGenerate = async () => {
         if (!prompt) return;
-        if (!restaurant) {
-            alert('Your restaurant profile is still loading or could not be found. Please refresh or try again.');
-            return;
-        }
         setIsGenerating(true);
         setStatus('loading');
 
@@ -156,7 +114,6 @@ export default function VideoStudio() {
                     aspectRatio,
                     duration,
                     generateAudio,
-                    restaurantId: restaurant.id,
                     referenceImage
                 })
             });
@@ -339,11 +296,11 @@ export default function VideoStudio() {
 
                     <button
                         onClick={handleGenerate}
-                        disabled={!prompt || isGenerating || (isLoadingRestaurant && !restaurant)}
-                        className={`w-full h-14 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-100 ${( !prompt || isGenerating || (isLoadingRestaurant && !restaurant)) ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-[#FF6B35] hover:bg-[#e85a25]'}`}
+                        disabled={!prompt || isGenerating}
+                        className={`w-full h-14 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-100 ${(!prompt || isGenerating) ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-[#FF6B35] hover:bg-[#e85a25]'}`}
                     >
                         <Video size={22} />
-                        {(isLoadingRestaurant && !restaurant) ? 'Loading Account...' : isGenerating ? 'Generating Video...' : '🎬 Generate Video'}
+                        {isGenerating ? 'Generating Video...' : '🎬 Generate Video'}
                     </button>
                     <p className="text-center text-[11px] text-gray-400 italic">~2-3 minutes to generate high-quality output</p>
                 </div>
