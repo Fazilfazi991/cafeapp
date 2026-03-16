@@ -1,10 +1,15 @@
 import { GoogleGenAI } from '@google/genai';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
+import { createClient as createAdminClient } from '@supabase/supabase-js';
 
 export async function POST(req: NextRequest) {
     try {
         const supabase = createClient();
+        const supabaseAdmin = createAdminClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_ROLE_KEY!
+        );
         const { data: { user } } = await supabase.auth.getUser();
 
         if (!user) {
@@ -216,10 +221,10 @@ export async function POST(req: NextRequest) {
                 buffer = Buffer.from(await videoResponse.arrayBuffer());
             }
 
-            console.log('[VEO] Uploading video to Supabase Storage...');
+            console.log('[VEO] Uploading video to Supabase Storage using admin client...');
             const fileName = `studio-${jobId}.mp4`;
             
-            const { error: uploadError } = await supabase.storage
+            const { error: uploadError } = await supabaseAdmin.storage
                 .from('videos')
                 .upload(fileName, buffer, { 
                     contentType: 'video/mp4',
@@ -228,7 +233,7 @@ export async function POST(req: NextRequest) {
             
             if (uploadError) throw uploadError;
             
-            const { data: { publicUrl } } = supabase.storage
+            const { data: { publicUrl } } = supabaseAdmin.storage
                 .from('videos')
                 .getPublicUrl(fileName);
             
