@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
+import { GoogleGenAI } from '@google/genai';
+import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase-server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
     try {
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -13,33 +13,34 @@ export async function POST(req: Request) {
 
         // Log request size to debug potential 413s
         const contentLength = req.headers.get('content-length');
-        console.log(`[VIDEO_API] Received request. Size: ${contentLength} bytes`);
+        console.log(`[VEO] Received request. Size: ${contentLength} bytes`);
 
         let body;
         try {
             body = await req.json();
         } catch (jsonErr) {
-            console.error('[VIDEO_API] JSON parse error:', jsonErr);
+            console.error('[VEO] JSON parse error:', jsonErr);
             return NextResponse.json({ 
                 error: 'Invalid JSON request. The image might be too large or the payload corrupted.' 
             }, { status: 400 });
         }
-        let { 
+
+        const { 
             title, 
             prompt, 
-            negativePrompt, 
             aspectRatio = '9:16', 
-            duration = 8, 
-            generateAudio = true,
-            restaurantId,
-            referenceImage
+            duration = 8,
+            restaurantId: providedRestaurantId
         } = body;
+
+        console.log('[VEO] Starting with prompt:', prompt);
 
         if (!prompt) {
             return NextResponse.json({ error: 'Missing prompt' }, { status: 400 });
         }
 
-        // 0. Auto-resolve restaurantId if missing
+        // Auto-resolve restaurantId if missing
+        let restaurantId = providedRestaurantId;
         if (!restaurantId) {
             const { data: restaurant } = await supabase
                 .from('restaurants')
@@ -53,17 +54,15 @@ export async function POST(req: Request) {
             }
         }
 
-        // 1. Create DB record
+        // 1. Create DB record for tracking
         const { data: videoRecord, error: dbError } = await supabase
             .from('videos')
             .insert({
                 restaurant_id: restaurantId,
-                title,
+                title: title || 'New Studio Reel',
                 prompt,
-                negative_prompt: negativePrompt,
                 aspect_ratio: aspectRatio,
                 duration,
-                generate_audio: generateAudio,
                 status: 'pending'
             })
             .select()
@@ -71,17 +70,16 @@ export async function POST(req: Request) {
 
         if (dbError) throw dbError;
 
-        // 2. Initialize Google GenAI SDK (Veo 3.1)
-        console.log(`[VIDEO_API] Initializing GoogleGenAI SDK for ${videoRecord.id}`);
-        // @ts-ignore
-        const { GoogleGenAI } = await import('@google/genai');
+        // 2. Initialize Google GenAI SDK
+        console.log('[VEO] Initializing GoogleGenAI SDK...');
         const ai = new GoogleGenAI({ 
-            apiKey: process.env.GEMINI_API_KEY || '' 
+            apiKey: process.env.GEMINI_API_KEY! 
         });
 
-        // 3. Call generateVideos
-        console.log(`[VIDEO_API] Calling generateVideos for ${videoRecord.id}`);
-        const operation = await ai.models.generateVideos({
+        console.log('[VEO] Calling generateVideos...');
+        
+        // Exact implementation as requested
+        let operation = await ai.models.generateVideos({
             model: 'veo-3.1-generate-preview',
             prompt: prompt,
             config: {
@@ -90,32 +88,106 @@ export async function POST(req: Request) {
             }
         });
 
-        // DEBUGGING OPERATION OBJECT
-        console.log('[VIDEO_API] Result type:', typeof operation);
-        console.log('[VIDEO_API] Full operation object:', JSON.stringify(operation, null, 2));
-        console.log('[VIDEO_API] Operation keys:', Object.keys(operation));
-        console.log('[VIDEO_API] Operation name:', operation.name);
-        console.log('[VIDEO_API] Operation ID (prop):', (operation as any).operationId);
-        console.log('[VIDEO_API] Operation metadata name:', (operation as any).metadata?.name);
-        console.log('[VIDEO_API] Operation done:', operation.done);
+        console.log('[VEO] Operation created:', JSON.stringify(operation));
 
-        // Update record with operation info if available, or just mark as processing
+        // Update DB with operation name immediately
         await supabase
             .from('videos')
             .update({ 
                 status: 'processing',
-                operation_id: operation?.name
+                operation_id: operation.name
             })
             .eq('id', videoRecord.id);
 
-        return NextResponse.json({ 
-            success: true, 
-            jobId: videoRecord.id,
-            operationId: operation?.name || videoRecord.id
-        });
+        // 3. Poll until complete (Wait for up to 10 minutes)
+        let attempts = 0;
+        const maxAttempts = 60;
+        const delay = 10000; // 10 seconds
+
+        while (!operation.done && attempts < maxAttempts) {
+            console.log(`[VEO] Polling attempt ${attempts + 1}/${maxAttempts} for ${videoRecord.id}...`);
+            await new Promise(r => setTimeout(r, delay));
+            operation = await operation.refresh();
+            attempts++;
+        }
+
+        if (!operation.done) {
+            const timeoutError = 'Video generation timed out after 10 minutes';
+            console.error(`[VEO] ${timeoutError}`);
+            await supabase
+                .from('videos')
+                .update({ status: 'failed', error_message: timeoutError })
+                .eq('id', videoRecord.id);
+            throw new Error(timeoutError);
+        }
+
+        console.log('[VEO] Done! Response data available.');
+
+        // 4. Extract video details
+        const video = operation.response?.generatedVideos?.[0];
+        if (!video) {
+            const noVideoError = 'No video found in response';
+            await supabase
+                .from('videos')
+                .update({ status: 'failed', error_message: noVideoError })
+                .eq('id', videoRecord.id);
+            throw new Error(noVideoError);
+        }
+
+        const videoBytes = video.video?.bytesBase64Encoded;
+        const videoUri = video.video?.uri;
+
+        console.log('[VEO] Has bytes:', !!videoBytes);
+        console.log('[VEO] Has URI:', !!videoUri);
+
+        let finalVideoUrl = videoUri;
+
+        if (videoBytes) {
+            console.log('[VEO] Uploading bytes to Supabase Storage...');
+            const buffer = Buffer.from(videoBytes, 'base64');
+            const fileName = `studio-${videoRecord.id}.mp4`;
+            
+            const { error: uploadError } = await supabase.storage
+                .from('videos')
+                .upload(fileName, buffer, { 
+                    contentType: 'video/mp4',
+                    upsert: true
+                });
+            
+            if (uploadError) throw uploadError;
+            
+            const { data: { publicUrl } } = supabase.storage
+                .from('videos')
+                .getPublicUrl(fileName);
+            
+            finalVideoUrl = publicUrl;
+        }
+
+        if (finalVideoUrl) {
+            console.log('[VEO] Final Video URL:', finalVideoUrl);
+            await supabase
+                .from('videos')
+                .update({ 
+                    status: 'completed', 
+                    video_url: finalVideoUrl,
+                    thumbnail_url: finalVideoUrl.replace('.mp4', '.jpg')
+                })
+                .eq('id', videoRecord.id);
+
+            return NextResponse.json({ 
+                success: true, 
+                videoUrl: finalVideoUrl,
+                jobId: videoRecord.id 
+            });
+        }
+
+        throw new Error('Could not resolve a stable video URL from the response');
 
     } catch (error: any) {
-        console.error('[VIDEO_GENERATE_ERROR]', error);
-        return NextResponse.json({ error: error.message || 'Failed to initiate video generation' }, { status: 500 });
+        console.error('[VEO] Fatal Error:', error.message);
+        return NextResponse.json(
+            { error: error.message }, 
+            { status: 500 }
+        );
     }
 }

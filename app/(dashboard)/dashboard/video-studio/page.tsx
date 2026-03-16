@@ -179,7 +179,14 @@ export default function VideoStudio() {
             }
 
             if (data.success) {
-                pollStatus(data.jobId);
+                if (data.videoUrl) {
+                    setVideoUrl(data.videoUrl);
+                    setStatus('success');
+                    setIsGenerating(false);
+                    fetchHistory();
+                } else if (data.jobId) {
+                    pollStatus(data.jobId);
+                }
             } else {
                 setErrorMessage(data.error || 'Failed to initiate video generation');
                 setStatus('error');
