@@ -110,6 +110,7 @@ export default function CreatePostPage() {
             } else {
                 setGenerationProgress('✨ Generating with Gemini AI...')
                 try {
+                    setGenerationProgress('✨ Initiating AI generation...');
                     const posterRes = await fetch('/api/generate/poster', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -120,10 +121,56 @@ export default function CreatePostPage() {
                     try { data = JSON.parse(posterText) } catch (e) { throw new Error(posterText) }
                     if (!posterRes.ok) throw new Error(data.error || posterText)
 
-                    setPosters(data.posters)
-                    setSelectedStyle('minimal')
+                    if (data.isAsync) {
+                        const styleList = ['minimal', 'bold', 'lifestyle'] as const;
+                        const taskIds = data.tasks;
+                        const restaurantId = data.restaurantId;
+                        const completedPosters: any = {};
+                        
+                        setGenerationProgress('✨ Waiting for Manus AI... (this may take 30-60s)');
+                        
+                        const startTime = Date.now();
+                        const MAX_POLLING_TIME = 180000; // 3 minutes
 
-                    // Use the dishName returned from Gemini analysis if user didn't provide one
+                        while (Object.keys(completedPosters).length < styleList.length) {
+                            if (Date.now() - startTime > MAX_POLLING_TIME) {
+                                throw new Error('Generation took longer than usual. Please try again.');
+                            }
+
+                            for (const style of styleList) {
+                                if (completedPosters[style]) continue;
+
+                                const statusRes = await fetch(`/api/generate/poster/status?taskId=${taskIds[style]}&restaurantId=${restaurantId}`);
+                                if (!statusRes.ok) continue;
+
+                                const statusData = await statusRes.json();
+                                if (statusData.status === 'completed' && statusData.imageUrl) {
+                                    completedPosters[style] = statusData.imageUrl;
+                                    setPosters((prev: any) => ({ ...prev, [style]: statusData.imageUrl }));
+                                    if (style === 'minimal') setSelectedStyle('minimal');
+                                    
+                                    const remaining = styleList.length - Object.keys(completedPosters).length;
+                                    if (remaining > 0) {
+                                        setGenerationProgress(`✨ ${remaining} variations remaining...`);
+                                    }
+                                } else if (statusData.status === 'failed') {
+                                    console.error(`Task for ${style} failed:`, statusData.error);
+                                    // Fallback to original image if one fail
+                                    completedPosters[style] = uploadedUrl;
+                                    setPosters((prev: any) => ({ ...prev, [style]: uploadedUrl }));
+                                }
+                            }
+
+                            if (Object.keys(completedPosters).length < styleList.length) {
+                                await new Promise(resolve => setTimeout(resolve, 3000));
+                            }
+                        }
+                    } else {
+                        setPosters(data.posters)
+                        setSelectedStyle('minimal')
+                    }
+
+                    // Use the dishName returned from analysis if user didn't provide one
                     if (data.dishName && !dishName) {
                         setDishName(data.dishName);
                     }

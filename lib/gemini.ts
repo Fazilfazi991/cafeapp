@@ -209,11 +209,30 @@ Description: ${params.dishDescription}
       .resize(1080, 1080, { fit: 'cover' })
       .toBuffer()) as any;
 
+    return await applyPosterOverlays(finalImageBuffer, {
+      phone: params.phone,
+      address: params.address,
+      logoUrl: params.logoUrl
+    });
+  } catch (err) {
+    console.error('Failed to process image:', err);
+    return `data:image/png;base64,${imageBase64}`;
+  }
+}
+
+export async function applyPosterOverlays(
+  imageBuffer: Buffer,
+  params: {
+    phone: string;
+    address: string;
+    logoUrl?: string;
+  }
+): Promise<string> {
+  try {
     const composites: sharp.OverlayOptions[] = [];
 
     // --- A. Footer Bar & Text Overlay ---
     const footerHeight = 80;
-    // Note: SVG requires the xmlns attribute for sharp/librsvg to parse it correctly!
     const footerSvg = Buffer.from(`
       <svg width="1080" height="1080" xmlns="http://www.w3.org/2000/svg">
         <rect x="0" y="${1080 - footerHeight}" width="1080" height="${footerHeight}" fill="rgba(0,0,0,0.6)" />
@@ -231,43 +250,36 @@ Description: ${params.dishDescription}
     // --- B. Logo Overlay ---
     if (params.logoUrl) {
       try {
-        console.log('Fetching logo from:', params.logoUrl);
         const logoRes = await fetch(params.logoUrl);
         if (logoRes.ok) {
           const logoBuffer = await logoRes.arrayBuffer();
-
           const logoSize = 120;
           const padding = 30;
-          const borderSize = logoSize + 8; // 128px (gives a 4px border radius)
+          const borderSize = logoSize + 8;
 
-          // 1. Create a circular mask
           const maskSvg = Buffer.from(
             `<svg width="${logoSize}" height="${logoSize}" xmlns="http://www.w3.org/2000/svg">
               <circle cx="${logoSize / 2}" cy="${logoSize / 2}" r="${logoSize / 2}" fill="white" />
             </svg>`
           );
 
-          // 2. Resize the logo and apply circular mask
           const roundedLogo = await sharp(Buffer.from(logoBuffer))
             .resize(logoSize, logoSize, { fit: 'cover' })
             .composite([{ input: maskSvg, blend: 'dest-in' }])
             .png()
             .toBuffer();
 
-          // 3. Create a solid white circle background (for the ring border)
           const whiteCircleSvg = Buffer.from(
             `<svg width="${borderSize}" height="${borderSize}" xmlns="http://www.w3.org/2000/svg">
               <circle cx="${borderSize / 2}" cy="${borderSize / 2}" r="${borderSize / 2}" fill="white" />
             </svg>`
           );
 
-          // 4. Composite the rounded logo evenly strictly over the white circle
           const logoWithWhiteBorder = await sharp(whiteCircleSvg)
             .composite([{ input: roundedLogo, gravity: 'center' }])
             .png()
             .toBuffer();
 
-          // 5. Add to main image in top-right corner
           composites.push({
             input: logoWithWhiteBorder,
             gravity: 'northeast',
@@ -276,21 +288,19 @@ Description: ${params.dishDescription}
           });
         }
       } catch (err) {
-        console.warn('Failed to process logo overlay, skipping logo:', err);
+        console.warn('Failed to process logo overlay:', err);
       }
     }
 
-    // --- C. Apply all overlays ---
-    finalImageBuffer = (await sharp(finalImageBuffer)
+    const finalBuffer = await sharp(imageBuffer)
       .composite(composites)
       .jpeg({ quality: 90 })
-      .toBuffer()) as any;
+      .toBuffer();
 
-    return `data:image/jpeg;base64,${finalImageBuffer.toString('base64')}`;
-
+    return `data:image/jpeg;base64,${finalBuffer.toString('base64')}`;
   } catch (err) {
-    console.error('Failed to composite image:', err);
-    return `data:image/png;base64,${imageBase64}`;
+    console.error('Overlay composition failed:', err);
+    return `data:image/jpeg;base64,${imageBuffer.toString('base64')}`;
   }
 }
 

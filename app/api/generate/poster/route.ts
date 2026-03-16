@@ -70,33 +70,77 @@ export async function POST(req: Request) {
             platform: 'instagram'
         });
 
-        // STEP 4 — Generate posters with Gemini AI
-        console.log('Generating posters with Gemini AI...');
+        // STEP 4 — Generate posters with Manus API (Async)
+        console.log('Initiating Manus task creation...');
         const headline = offerText?.trim() || customText?.trim() || analysis.dishName;
 
-        const posters = await generateAllPosters({
-            photoUrl: imageUrl,
-            logoUrl: brand?.logo_url || undefined,
-            businessName: restaurant.name || 'Our Restaurant',
-            businessType: restaurant.cuisine_type || 'Restaurant',
-            customText: headline,
-            dishName: analysis.dishName,
-            dishDescription: analysis.description,
-            phone: restaurant.phone || '',
-            website: restaurant.website || '',
-            address: restaurant.address || 'Dubai, UAE',
-            primaryColor: brand?.primary_color || '#FF6B35',
-            tone: restaurant.tone_of_voice || 'casual',
-            restaurantId: restaurant.id,
-        });
+        try {
+            const { uploadFileToManus, createManusTask } = await import('@/lib/manus');
+            
+            let fileId = undefined;
+            if (imageUrl && !imageUrl.startsWith('data:')) {
+                console.log('Uploading reference image to Manus...');
+                fileId = await uploadFileToManus(imageUrl);
+            }
 
-        console.log('Complete! Returning data...');
-        return NextResponse.json({
-            success: true,
-            dishName: analysis.dishName,
-            posters,
-            captions
-        });
+            const styles = ['minimal', 'bold', 'lifestyle'] as const;
+            
+            // Build prompts for each style
+            const stylePrompts = {
+                minimal: `Using this food photo as reference, restyle ONLY the background and lighting. Keep the dish exactly as it appears. Apply Dark moody background, dramatic candlelight, deep browns and golds, premium fine dining aesthetic. NO TEXT. NO TYPOGRAPHY.`,
+                lifestyle: `Using this food photo as reference, restyle ONLY the background and lighting. Keep the dish exactly as it appears. Apply Clean white marble background, bright natural daylight, fresh healthy cafe aesthetic. NO TEXT. NO TYPOGRAPHY.`,
+                bold: `Generate an appetizing food poster for ${analysis.dishName}. Style: ${restaurant.name} brand colors, bold energetic graphic design, vivid colors, modern street food aesthetic. Display the dish name "${analysis.dishName}" in large elegant font. NO ADDRESS OR PHONE NUMBERS.`
+            };
+
+            const taskPromises = styles.map(style => 
+                createManusTask({ 
+                    prompt: stylePrompts[style], 
+                    fileId: style === 'bold' ? undefined : fileId 
+                }).then(id => ({ style, taskId: id }))
+            );
+
+            const taskResults = await Promise.all(taskPromises);
+            const tasks = taskResults.reduce((acc, curr) => ({ ...acc, [curr.style]: curr.taskId }), {});
+
+            console.log('Manus tasks created! Returning task IDs for polling...');
+            return NextResponse.json({
+                success: true,
+                isAsync: true,
+                restaurantId: restaurant.id,
+                dishName: analysis.dishName,
+                tasks,
+                captions
+            });
+
+        } catch (manusError) {
+            console.error('[MANUS_INIT_FAILED] falling back to Gemini...', manusError);
+            
+            // Fallback to existing Gemini logic
+            const { generateAllPosters } = await import('@/lib/gemini');
+            const posters = await generateAllPosters({
+                photoUrl: imageUrl,
+                logoUrl: brand?.logo_url || undefined,
+                businessName: restaurant.name || 'Our Restaurant',
+                businessType: restaurant.cuisine_type || 'Restaurant',
+                customText: headline,
+                dishName: analysis.dishName,
+                dishDescription: analysis.description,
+                phone: restaurant.phone || '',
+                website: restaurant.website || '',
+                address: restaurant.address || 'Dubai, UAE',
+                primaryColor: brand?.primary_color || '#FF6B35',
+                tone: restaurant.tone_of_voice || 'casual',
+                restaurantId: restaurant.id,
+            });
+
+            return NextResponse.json({
+                success: true,
+                isAsync: false,
+                dishName: analysis.dishName,
+                posters,
+                captions
+            });
+        }
 
     } catch (error: any) {
         console.error('[POSTER_GENERATION_ERROR]', error);
