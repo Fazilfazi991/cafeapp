@@ -52,9 +52,15 @@ export async function POST(req: NextRequest) {
             if (restaurant) {
                 restaurantId = restaurant.id;
             }
+        if (!restaurantId) {
+            console.error('[VEO] No restaurant found for user:', user.id);
+            return NextResponse.json({ 
+                error: 'Please select or create a restaurant before generating videos.' 
+            }, { status: 400 });
         }
 
         // 1. Create DB record for tracking
+        console.log(`[VEO] Attempting insert. User: ${user.id}, Restaurant: ${restaurantId}`);
         const { data: videoRecord, error: dbError } = await supabase
             .from('videos')
             .insert({
