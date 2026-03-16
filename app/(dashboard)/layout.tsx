@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase-server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, Calendar, PenSquare, Settings, LogOut, FolderOpen, AlertTriangle, Users } from 'lucide-react'
+import { LayoutDashboard, Calendar, PenSquare, Settings, LogOut, FolderOpen, AlertTriangle, Users, Film } from 'lucide-react'
 
 export default async function DashboardLayout({
     children,
@@ -90,6 +90,7 @@ export default async function DashboardLayout({
     const navLinks = [
         { href: '/dashboard', icon: LayoutDashboard, label: 'Overview' },
         { href: '/dashboard/create', icon: PenSquare, label: 'Create' },
+        { href: '/dashboard/video-studio', icon: Film, label: 'Video Studio', isNew: true },
         { href: '/dashboard/calendar', icon: Calendar, label: 'Calendar' },
         { href: '/dashboard/media', icon: FolderOpen, label: 'Media' },
         { href: '/dashboard/contacts', icon: Users, label: 'Contacts' },
@@ -105,10 +106,15 @@ export default async function DashboardLayout({
                     <span className="font-bold text-xl tracking-tight">Brand Pilot</span>
                 </div>
                 <nav className="p-4 flex flex-col gap-2 flex-1">
-                    {navLinks.map(({ href, icon: Icon, label }) => (
-                        <Link key={href} href={href} className="px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors">
+                    {navLinks.map(({ href, icon: Icon, label, isNew }) => (
+                        <Link key={href} href={href} className="px-4 py-3 text-gray-400 hover:text-white hover:bg-gray-800 rounded-md font-medium text-sm flex items-center gap-3 transition-colors relative group">
                             <Icon size={18} />
                             {label}
+                            {isNew && (
+                                <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#FF6B35] text-white text-[8px] font-bold px-1.5 py-0.5 rounded-full animate-pulse shadow-sm">
+                                    NEW
+                                </span>
+                            )}
                         </Link>
                     ))}
                 </nav>

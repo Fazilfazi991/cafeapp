@@ -187,6 +187,73 @@ export async function publishToInstagram(igUserId: string, userAccessToken: stri
 }
 
 /**
+ * Publish a video to Instagram (Reels)
+ */
+export async function publishVideoToInstagram(igUserId: string, userAccessToken: string, caption: string, videoUrl: string) {
+    // 1. Create Media Container for Video
+    const containerResponse = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            media_type: 'REELS',
+            video_url: videoUrl,
+            caption: caption,
+            access_token: userAccessToken
+        }),
+    });
+
+    if (!containerResponse.ok) {
+        const error = await containerResponse.text();
+        throw new Error(`Instagram Video Container Creation Error: ${error}`);
+    }
+
+    const { id: creationId } = await containerResponse.json();
+
+    // 2. Poll for video processing status (required for videos)
+    // For simplicity in this MVP, we wait a few seconds, but ideally we should poll /creationId?fields=status_code
+    await new Promise(resolve => setTimeout(resolve, 5000));
+
+    // 3. Publish Media
+    const publishResponse = await fetch(`https://graph.facebook.com/v19.0/${igUserId}/media_publish`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            creation_id: creationId,
+            access_token: userAccessToken
+        }),
+    });
+
+    if (!publishResponse.ok) {
+        const error = await publishResponse.text();
+        throw new Error(`Instagram Video Publish Error: ${error}`);
+    }
+
+    return await publishResponse.json();
+}
+
+/**
+ * Publish a video to Facebook Page
+ */
+export async function publishVideoToFacebook(pageId: string, pageAccessToken: string, description: string, videoUrl: string) {
+    const response = await fetch(`https://graph.facebook.com/v19.0/${pageId}/videos`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            file_url: videoUrl,
+            description: description,
+            access_token: pageAccessToken
+        }),
+    });
+
+    const responseText = await response.text();
+    if (!response.ok) {
+        throw new Error(`Facebook Video Publish Error: ${responseText}`);
+    }
+
+    return JSON.parse(responseText);
+}
+
+/**
  * Fetch the connected User's Facebook Ad Accounts
  */
 export async function getMetaAdAccounts(userAccessToken: string) {

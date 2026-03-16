@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 export async function POST(req: Request) {
     try {
         const body = await req.json()
-        const { caption, imageUrl, scheduledTime, platforms, whatsappCustomMessage } = body
+        const { caption, imageUrl, scheduledTime, platforms, whatsappCustomMessage, postType = 'image' } = body
 
         if (!caption || !imageUrl || !platforms || platforms.length === 0) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 })
@@ -64,14 +64,18 @@ export async function POST(req: Request) {
         const publishErrors: string[] = [];
 
         if (isImmediate) {
-            const { publishToFacebook, publishToInstagram } = await import('@/lib/meta');
+            const { publishToFacebook, publishToInstagram, publishVideoToFacebook, publishVideoToInstagram } = await import('@/lib/meta');
 
             if (platforms.includes('facebook')) {
                 if (!metaAccount.meta_page_id) {
                     publishErrors.push('No Facebook Page ID attached')
                 } else {
                     try {
-                        await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
+                        if (postType === 'video') {
+                            await publishVideoToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
+                        } else {
+                            await publishToFacebook(metaAccount.meta_page_id, metaAccount.meta_access_token, caption, imageUrl)
+                        }
                     } catch (fbErr: any) {
                         publishErrors.push(`Facebook: ${fbErr.message}`)
                     }
@@ -82,7 +86,11 @@ export async function POST(req: Request) {
                     publishErrors.push('No Instagram Business Account attached')
                 } else {
                     try {
-                        await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
+                        if (postType === 'video') {
+                            await publishVideoToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
+                        } else {
+                            await publishToInstagram(metaAccount.meta_ig_id, metaAccount.meta_access_token, caption, imageUrl)
+                        }
                     } catch (igErr: any) {
                         console.warn('[INSTAGRAM_PUBLISH_WARN]', igErr.message)
                         publishErrors.push(`Instagram: ${igErr.message}`)
@@ -103,7 +111,7 @@ export async function POST(req: Request) {
             .from('posts')
             .insert({
                 restaurant_id: restaurant.id,
-                post_type: 'image',
+                post_type: postType,
                 poster_url: imageUrl,
                 selected_caption: caption,
                 whatsapp_custom_message: whatsappCustomMessage,
