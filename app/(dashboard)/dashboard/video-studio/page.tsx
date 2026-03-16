@@ -11,7 +11,7 @@ import {
     AlertCircle,
     Layout
 } from 'lucide-react';
-import { createClient } from '@/lib/supabase-browser';
+import { createClient } from '@/lib/supabase';
 import SchedulingModal from '@/components/create/SchedulingModal';
 
 const TEMPLATES = [
