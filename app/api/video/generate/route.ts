@@ -71,7 +71,7 @@ export async function POST(req: Request) {
 
             // @ts-ignore
             operation = await model.generateVideo({
-                prompt: finalPrompt,
+                prompt: prompt,
                 image: {
                     mimeType: mimeType,
                     data: data
@@ -81,7 +81,7 @@ export async function POST(req: Request) {
         } else {
             // @ts-ignore
             operation = await model.generateVideo({
-                prompt: finalPrompt,
+                prompt: prompt,
                 config: videoConfig
             });
         }

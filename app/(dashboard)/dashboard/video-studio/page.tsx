@@ -311,11 +311,11 @@ export default function VideoStudio() {
 
                     <button
                         onClick={handleGenerate}
-                        disabled={!prompt || isGenerating}
-                        className={`w-full h-14 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-100 ${!prompt || isGenerating ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-[#FF6B35] hover:bg-[#e85a25]'}`}
+                        disabled={!prompt || isGenerating || !restaurant}
+                        className={`w-full h-14 rounded-xl text-white font-bold text-lg flex items-center justify-center gap-2 transition-all shadow-lg shadow-orange-100 ${(!prompt || isGenerating || !restaurant) ? 'bg-gray-300 cursor-not-allowed shadow-none' : 'bg-[#FF6B35] hover:bg-[#e85a25]'}`}
                     >
                         <Video size={22} />
-                        {isGenerating ? 'Generating Video...' : '🎬 Generate Video'}
+                        {!restaurant ? 'Loading Account...' : isGenerating ? 'Generating Video...' : '🎬 Generate Video'}
                     </button>
                     <p className="text-center text-[11px] text-gray-400 italic">~2-3 minutes to generate high-quality output</p>
                 </div>
